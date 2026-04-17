@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       })),
       customer_creation: 'always',
       success_url: `${siteUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/cart`,
+      cancel_url: `${siteUrl}/`,
       metadata: {
         product_ids: JSON.stringify(validItems.map((i) => i.product_id)),
       },

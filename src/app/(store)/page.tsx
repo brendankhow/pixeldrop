@@ -36,9 +36,41 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Featured hero — latest drop */}
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-page">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 sm:pt-28 sm:pb-32 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/30 px-4 py-1.5 mb-6">
+            <span className="text-xs font-medium text-[#A78BFA]">✦ Instant delivery to your inbox</span>
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-fg leading-tight tracking-tight max-w-3xl mx-auto">
+            Beautiful wallpapers for{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#A78BFA]">
+              every screen
+            </span>
+          </h1>
+
+          <p className="mt-6 text-lg sm:text-xl text-fg-muted max-w-xl mx-auto leading-relaxed">
+            Hand-crafted for iPhone, desktop and beyond. Instant delivery to your inbox.
+          </p>
+
+          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="#products"
+              className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-h active:bg-[#4C1D95] text-white font-semibold px-8 py-4 rounded-xl transition-colors min-h-[52px] text-base"
+            >
+              Shop Wallpapers
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured latest drop */}
       {featured && (
-        <section className="border-b border-edge">
+        <section className="border-b border-edge bg-page-alt">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
 
