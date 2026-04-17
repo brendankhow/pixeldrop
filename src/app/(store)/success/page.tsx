@@ -33,7 +33,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   const lineItems = session.line_items?.data ?? [];
 
   const shareUrl =
-    'https://twitter.com/intent/tweet?text=Just+grabbed+some+beautiful+wallpapers+from+%40PixelDrop+%F0%9F%8E%A8&url=https%3A%2F%2Fpixeldrop.com';
+    'https://twitter.com/intent/tweet?text=Just+grabbed+some+beautiful+wallpapers+from+%40PixelDropp+%F0%9F%8E%A8&url=https%3A%2F%2Fpixeldrop.com';
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-16">

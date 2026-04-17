@@ -87,7 +87,7 @@ export default async function AdminDashboardPage() {
       <div>
         <h1 className="text-2xl font-bold text-[#EDEDED]">Dashboard</h1>
         <p className="text-sm text-[#9CA3AF] mt-1">
-          Welcome back — here's what's happening with PixelDrop.
+          Welcome back — here's what's happening with PixelDropp.
         </p>
       </div>
 

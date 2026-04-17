@@ -40,7 +40,7 @@ export function Navbar() {
               className="flex items-center gap-2 text-xl font-bold text-fg hover:text-fg transition-colors"
             >
               <span className="text-primary">✦</span>
-              PixelDrop
+              PixelDropp
             </Link>
 
             <div className="flex items-center gap-2">

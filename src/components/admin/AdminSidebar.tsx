@@ -63,7 +63,7 @@ export function AdminSidebar() {
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-[#1F1F1F]">
           <span className="text-sm font-bold text-[#EDEDED]">
-            <span className="text-[#5B21B6]">✦</span> PixelDrop Admin
+            <span className="text-[#5B21B6]">✦</span> PixelDropp Admin
           </span>
         </div>
 
@@ -87,7 +87,7 @@ export function AdminSidebar() {
       {/* ── Mobile top bar ────────────────────────────────────── */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#0A0A0A] border-b border-[#1F1F1F] sticky top-0 z-30">
         <span className="text-sm font-bold text-[#EDEDED]">
-          <span className="text-[#5B21B6]">✦</span> PixelDrop Admin
+          <span className="text-[#5B21B6]">✦</span> PixelDropp Admin
         </span>
         <button
           onClick={() => setMobileOpen(true)}
@@ -110,7 +110,7 @@ export function AdminSidebar() {
           <div className="relative w-64 bg-[#0A0A0A] border-r border-[#1F1F1F] flex flex-col z-50">
             <div className="flex items-center justify-between px-4 py-4 border-b border-[#1F1F1F]">
               <span className="text-sm font-bold text-[#EDEDED]">
-                <span className="text-[#5B21B6]">✦</span> PixelDrop Admin
+                <span className="text-[#5B21B6]">✦</span> PixelDropp Admin
               </span>
               <button
                 onClick={() => setMobileOpen(false)}

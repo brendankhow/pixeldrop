@@ -1,5 +1,5 @@
 /**
- * Stripe Webhook Handler — PixelDrop fulfilment engine
+ * Stripe Webhook Handler — PixelDropp fulfilment engine
  *
  * Full flow for checkout.session.completed:
  *   1. Verify Stripe signature (reject invalid requests with 400)

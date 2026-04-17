@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <p className="text-3xl font-bold text-[#EDEDED]">
-            <span className="text-[#5B21B6]">✦</span> PixelDrop
+            <span className="text-[#5B21B6]">✦</span> PixelDropp
           </p>
           <p className="text-sm text-[#9CA3AF] mt-2">Admin Portal</p>
         </div>

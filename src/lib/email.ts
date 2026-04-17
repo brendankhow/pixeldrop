@@ -37,7 +37,7 @@ function buildHtml(
 <body style="background:#0A0A0A;font-family:system-ui,-apple-system,Arial,sans-serif;margin:0;padding:0;">
   <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
     <div style="text-align:center;padding-bottom:24px;">
-      <p style="font-size:22px;font-weight:700;color:#EDEDED;margin:0;">&#10022; PixelDrop</p>
+      <p style="font-size:22px;font-weight:700;color:#EDEDED;margin:0;">&#10022; PixelDropp</p>
       <p style="font-size:13px;color:#9CA3AF;margin:6px 0 0;">Beautiful wallpapers for every screen</p>
     </div>
 
@@ -66,8 +66,8 @@ function buildHtml(
     </div>
 
     <hr style="border-color:#1F1F1F;margin:20px 0;">
-    <p style="font-size:12px;color:#6B7280;text-align:center;margin:16px 0 6px;">Thank you for your purchase &middot; PixelDrop</p>
-    <p style="font-size:11px;color:#374151;text-align:center;margin:0;">You received this email because you made a purchase at PixelDrop.</p>
+    <p style="font-size:12px;color:#6B7280;text-align:center;margin:16px 0 6px;">Thank you for your purchase &middot; PixelDropp</p>
+    <p style="font-size:11px;color:#374151;text-align:center;margin:0;">You received this email because you made a purchase at PixelDropp.</p>
   </div>
 </body>
 </html>`;
@@ -89,7 +89,7 @@ export async function sendDeliveryEmail({
   await sgMail.send({
     from,
     to,
-    subject: 'Your PixelDrop wallpapers are here',
+    subject: 'Your PixelDropp wallpapers are here',
     html: buildHtml(products, downloadLinks, orderTotal),
   });
 }

@@ -24,14 +24,14 @@ export function DeliveryEmail({
   return (
     <Html lang="en">
       <Head />
-      <Preview>Your PixelDrop wallpapers are ready to download!</Preview>
+      <Preview>Your PixelDropp wallpapers are ready to download!</Preview>
 
       <Body style={styles.body}>
         <Container style={styles.container}>
 
           {/* ── Header ─────────────────────────────────────────── */}
           <Section style={styles.header}>
-            <Text style={styles.logoText}>✦ PixelDrop</Text>
+            <Text style={styles.logoText}>✦ PixelDropp</Text>
             <Text style={styles.tagline}>Beautiful wallpapers for every screen</Text>
           </Section>
 
@@ -88,7 +88,7 @@ export function DeliveryEmail({
           {/* ── Footer ─────────────────────────────────────────── */}
           <Hr style={styles.divider} />
           <Text style={styles.footerPrimary}>
-            Thank you for your purchase · PixelDrop
+            Thank you for your purchase · PixelDropp
           </Text>
           <Text style={styles.footerSecondary}>
             You received this email because you made a purchase at pixeldrop.com

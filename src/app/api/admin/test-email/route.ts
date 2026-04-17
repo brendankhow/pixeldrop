@@ -14,7 +14,7 @@ export async function GET() {
     await sgMail.send({
       from,
       to: from,
-      subject: 'PixelDrop — SendGrid test',
+      subject: 'PixelDropp — SendGrid test',
       html: '<p>SendGrid is working!</p>',
     });
     return NextResponse.json({ success: true, from, to: from });

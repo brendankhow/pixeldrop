@@ -11,7 +11,7 @@ import type { Product } from '@/types';
 export const revalidate = 3600;
 
 const categoryLabels: Record<Product['category'], string> = {
-  iphone: 'iPhone',
+  iphone: 'Smartphone',
   desktop: 'Desktop',
   bundle: 'Bundle',
   other: 'Other',

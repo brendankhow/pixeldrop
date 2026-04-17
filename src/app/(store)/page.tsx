@@ -8,7 +8,7 @@ import type { Product } from '@/types';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: 'PixelDrop — Beautiful Digital Wallpapers',
+  title: 'PixelDropp — Beautiful Digital Wallpapers',
   description: 'Hand-crafted wallpapers for iPhone, desktop and beyond. Instant delivery to your inbox.',
 };
 

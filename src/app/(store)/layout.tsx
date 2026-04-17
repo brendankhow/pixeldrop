@@ -6,7 +6,7 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
       <Navbar />
       <main className="flex-1">{children}</main>
       <footer className="border-t border-edge py-8 px-4 text-center">
-        <p className="text-sm text-fg-faint">© PixelDrop · Built for creators</p>
+        <p className="text-sm text-fg-faint">© PixelDropp · Built for creators</p>
       </footer>
     </div>
   );

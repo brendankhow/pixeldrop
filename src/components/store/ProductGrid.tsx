@@ -8,7 +8,7 @@ type Category = 'all' | 'iphone' | 'desktop' | 'bundle';
 
 const tabs: { label: string; value: Category }[] = [
   { label: 'All', value: 'all' },
-  { label: 'iPhone', value: 'iphone' },
+  { label: 'Smartphone', value: 'iphone' },
   { label: 'Desktop', value: 'desktop' },
   { label: 'Bundles', value: 'bundle' },
 ];
