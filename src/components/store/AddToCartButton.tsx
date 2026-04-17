@@ -22,7 +22,7 @@ export function AddToCartButton({ product }: { product: Product }) {
       variant="primary"
       size="lg"
       onClick={handleAdd}
-      className="w-full sm:w-auto gap-2"
+      className="flex-1 sm:flex-none gap-2"
     >
       {added ? (
         <>

@@ -1,10 +1,11 @@
 import { createPublicClient } from '@/lib/supabase/server';
 import { AddToCartButton } from '@/components/store/AddToCartButton';
+import { BuyNowButton } from '@/components/store/BuyNowButton';
 import { ProductCard } from '@/components/store/ProductCard';
 import { ProductImageGallery } from '@/components/store/ProductImageGallery';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Download, Shield, Zap, Clock } from 'lucide-react';
 import type { Metadata } from 'next';
 import type { Product } from '@/types';
 
@@ -74,72 +75,78 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const p = product as Product;
   const isPortrait = p.category === 'iphone';
 
-  // Fetch related products — same category first, then fill with others
   const { data: sameCategory } = await supabase
     .from('products')
     .select('*')
     .eq('is_active', true)
     .eq('category', p.category)
     .neq('id', p.id)
-    .limit(3);
+    .limit(4);
 
   let related: Product[] = (sameCategory ?? []) as Product[];
 
-  if (related.length < 3) {
+  if (related.length < 4) {
     const excludeIds = [p.id, ...related.map((r) => r.id)];
     const { data: others } = await supabase
       .from('products')
       .select('*')
       .eq('is_active', true)
       .not('id', 'in', `(${excludeIds.join(',')})`)
-      .limit(3 - related.length);
+      .limit(4 - related.length);
     related = [...related, ...((others ?? []) as Product[])];
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+
       {/* Breadcrumb */}
       <Link
-        href="/#products"
+        href="/"
         className="inline-flex items-center gap-1.5 text-sm text-fg-muted hover:text-fg transition-colors mb-8"
       >
         <ChevronLeft size={16} />
-        Back to products
+        All products
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
-        {/* Image gallery */}
-        <div>
-          <ProductImageGallery
-            images={[
-              ...(p.preview_image_url ? [p.preview_image_url] : []),
-              ...(p.additional_images ?? []),
-            ]}
-            productName={p.name}
-            isPortrait={isPortrait}
-          />
-        </div>
+      {/* Product layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
+
+        {/* Gallery */}
+        <ProductImageGallery
+          images={[
+            ...(p.preview_image_url ? [p.preview_image_url] : []),
+            ...(p.additional_images ?? []),
+          ]}
+          productName={p.name}
+          isPortrait={isPortrait}
+        />
 
         {/* Details */}
-        <div className="flex flex-col gap-6 lg:pt-4">
-          <div>
-            <span className="inline-flex items-center rounded-full bg-primary/15 border border-primary/30 px-3 py-1 text-xs font-medium text-[#A78BFA]">
-              {categoryLabels[p.category]}
-            </span>
-          </div>
+        <div className="flex flex-col gap-5">
 
+          {/* Category badge */}
+          <span className="inline-flex items-center self-start rounded-full bg-primary/15 border border-primary/30 px-3 py-1 text-xs font-medium text-[#A78BFA]">
+            {categoryLabels[p.category]}
+          </span>
+
+          {/* Title + Price */}
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-fg leading-tight">{p.name}</h1>
-            <p className="mt-3 text-3xl font-bold text-fg">${(p.price / 100).toFixed(2)}</p>
+            <p className="mt-3 text-4xl font-bold text-fg">${(p.price / 100).toFixed(2)}</p>
           </div>
 
-          <div className="flex items-center gap-2 text-sm text-fg-muted">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary" />
+          {/* Resolution */}
+          <p className="text-sm text-fg-muted flex items-center gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
             {resolutionHints[p.category]}
-          </div>
+          </p>
 
-          {p.description && <p className="text-fg-muted leading-relaxed">{p.description}</p>}
+          {/* Description */}
+          {p.description && (
+            <p className="text-fg-muted leading-relaxed">{p.description}</p>
+          )}
 
+          {/* Tags */}
           {p.tags && p.tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {p.tags.map((tag) => (
@@ -150,34 +157,42 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </div>
           )}
 
-          <div className="pt-2">
+          {/* CTA buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-1">
+            <BuyNowButton product={p} />
             <AddToCartButton product={p} />
           </div>
 
-          <div className="border-t border-edge pt-6 space-y-2.5">
+          {/* Trust bullets */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
             {[
-              '✓ Instant email delivery after purchase',
-              '✓ High resolution, ready to set as wallpaper',
-              '✓ Secure payment via Stripe',
-              '✓ Download link valid for 48 hours',
-            ].map((line) => (
-              <p key={line} className="text-sm text-fg-faint">{line}</p>
+              { icon: Zap, text: 'Instant email delivery' },
+              { icon: Download, text: 'High resolution files' },
+              { icon: Shield, text: 'Secure checkout via Stripe' },
+              { icon: Clock, text: 'Link valid for 48 hours' },
+            ].map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-2 text-xs text-fg-faint">
+                <Icon size={13} className="text-primary shrink-0" />
+                {text}
+              </div>
             ))}
           </div>
+
         </div>
       </div>
 
-      {/* Upsell */}
+      {/* Related products */}
       {related.length > 0 && (
-        <div className="mt-20 pt-12 border-t border-edge">
-          <h2 className="text-xl font-bold text-fg mb-6">You might also like</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mt-20 pt-10 border-t border-edge">
+          <h2 className="text-lg font-bold text-fg mb-6">You may also like</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {related.map((r) => (
               <ProductCard key={r.id} product={r} />
             ))}
           </div>
         </div>
       )}
+
     </div>
   );
 }
