@@ -1,7 +1,8 @@
-import { Resend } from 'resend';
+import sgMail from '@sendgrid/mail';
+import { render } from '@react-email/render';
 import { DeliveryEmail } from '@/components/emails/DeliveryEmail';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
 interface SendDeliveryEmailParams {
   to: string;
@@ -10,11 +11,6 @@ interface SendDeliveryEmailParams {
   orderTotal: number; // in cents
 }
 
-/**
- * Send the post-purchase delivery email via Resend.
- * Contains signed Supabase download URLs (48-hour expiry).
- * Throws on failure — callers should catch and handle gracefully.
- */
 export async function sendDeliveryEmail({
   to,
   products,
@@ -24,22 +20,18 @@ export async function sendDeliveryEmail({
   const from = process.env.FROM_EMAIL;
   if (!from) throw new Error('FROM_EMAIL environment variable is not set');
 
-  const { data, error } = await resend.emails.send({
+  const html = await render(
+    <DeliveryEmail
+      products={products}
+      downloadLinks={downloadLinks}
+      orderTotal={orderTotal}
+    />
+  );
+
+  await sgMail.send({
     from,
     to,
     subject: 'Your PixelDrop wallpapers are here 🎨',
-    react: (
-      <DeliveryEmail
-        products={products}
-        downloadLinks={downloadLinks}
-        orderTotal={orderTotal}
-      />
-    ),
+    html,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
-
-  return data;
 }
