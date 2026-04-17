@@ -1,7 +1,7 @@
 import { createPublicClient } from '@/lib/supabase/server';
 import { AddToCartButton } from '@/components/store/AddToCartButton';
 import { ProductCard } from '@/components/store/ProductCard';
-import Image from 'next/image';
+import { ProductImageGallery } from '@/components/store/ProductImageGallery';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
@@ -108,38 +108,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
-        {/* Image */}
-        <div className="space-y-4">
-          <div
-            className={`relative w-full rounded-2xl overflow-hidden bg-card border border-edge ${
-              isPortrait ? 'aspect-[9/16] max-w-xs mx-auto lg:mx-0' : 'aspect-video'
-            }`}
-          >
-            {p.preview_image_url ? (
-              <Image
-                src={p.preview_image_url}
-                alt={p.name}
-                fill
-                priority
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-edge-2 text-sm">
-                No preview available
-              </div>
-            )}
-          </div>
-
-          {p.additional_images && p.additional_images.length > 0 && (
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {p.additional_images.map((url, i) => (
-                <div key={i} className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-card border border-edge">
-                  <Image src={url} alt={`${p.name} preview ${i + 2}`} fill className="object-cover" sizes="80px" />
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Image gallery */}
+        <div>
+          <ProductImageGallery
+            images={[
+              ...(p.preview_image_url ? [p.preview_image_url] : []),
+              ...(p.additional_images ?? []),
+            ]}
+            productName={p.name}
+            isPortrait={isPortrait}
+          />
         </div>
 
         {/* Details */}

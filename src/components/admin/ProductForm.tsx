@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { X, Upload, FileText, ImagePlus } from 'lucide-react';
+import { X, Upload, FileText, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,13 @@ import { Select } from '@/components/ui/Select';
 import { Toggle } from '@/components/ui/Toggle';
 import { Spinner } from '@/components/ui/Spinner';
 import type { Product } from '@/types';
+
+const MAX_IMAGES = 5;
+
+type ImageSlot =
+  | { type: 'existing'; url: string }
+  | { type: 'new'; file: File; previewUrl: string }
+  | { type: 'empty' };
 
 interface ProductFormProps {
   mode: 'new' | 'edit';
@@ -20,57 +27,64 @@ interface ProductFormProps {
 export function ProductForm({ mode, product }: ProductFormProps) {
   const router = useRouter();
 
-  // Text fields
   const [name, setName] = useState(product?.name ?? '');
   const [description, setDescription] = useState(product?.description ?? '');
   const [category, setCategory] = useState<string>(product?.category ?? 'iphone');
-  const [priceUsd, setPriceUsd] = useState(
-    product ? (product.price / 100).toFixed(2) : ''
-  );
+  const [priceUsd, setPriceUsd] = useState(product ? (product.price / 100).toFixed(2) : '');
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
-
-  // Tags
   const [tags, setTags] = useState<string[]>(product?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
-
-  // Preview image
-  const [previewFile, setPreviewFile] = useState<File | null>(null);
-  const [previewObjectUrl, setPreviewObjectUrl] = useState<string | null>(null);
-  const previewInputRef = useRef<HTMLInputElement>(null);
-
-  // Additional images
-  const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
-  const [additionalPreviews, setAdditionalPreviews] = useState<string[]>([]);
-
-  // Deliverable file
   const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
-
-  // State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // Unified image slots — slot[0] is always the cover/preview
+  const initialSlots = (): ImageSlot[] => {
+    const slots: ImageSlot[] = [];
+    if (mode === 'edit' && product) {
+      if (product.preview_image_url) slots.push({ type: 'existing', url: product.preview_image_url });
+      (product.additional_images ?? []).forEach((url) => slots.push({ type: 'existing', url }));
+    }
+    while (slots.length < MAX_IMAGES) slots.push({ type: 'empty' });
+    return slots.slice(0, MAX_IMAGES);
+  };
 
-  function handlePreviewChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const [slots, setSlots] = useState<ImageSlot[]>(initialSlots);
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  function handleSlotFileChange(index: number, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
-    setPreviewFile(file);
-    setPreviewObjectUrl(URL.createObjectURL(file));
+    const previewUrl = URL.createObjectURL(file);
+    setSlots((prev) => {
+      const next = [...prev];
+      const old = next[index];
+      if (old.type === 'new') URL.revokeObjectURL(old.previewUrl);
+      next[index] = { type: 'new', file, previewUrl };
+      return next;
+    });
+    e.target.value = '';
   }
 
-  function handleAdditionalChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    const urls = files.map((f) => URL.createObjectURL(f));
-    setAdditionalFiles((prev) => [...prev, ...files]);
-    setAdditionalPreviews((prev) => [...prev, ...urls]);
+  function removeSlot(index: number) {
+    setSlots((prev) => {
+      const next = [...prev];
+      const old = next[index];
+      if (old.type === 'new') URL.revokeObjectURL(old.previewUrl);
+      next.splice(index, 1);
+      next.push({ type: 'empty' });
+      return next;
+    });
   }
 
-  function removeAdditional(index: number) {
-    URL.revokeObjectURL(additionalPreviews[index]);
-    setAdditionalFiles((prev) => prev.filter((_, i) => i !== index));
-    setAdditionalPreviews((prev) => prev.filter((_, i) => i !== index));
+  function setCover(index: number) {
+    if (index === 0) return;
+    setSlots((prev) => {
+      const next = [...prev];
+      const [cover] = next.splice(index, 1);
+      next.unshift(cover);
+      return next;
+    });
   }
 
   function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -82,17 +96,13 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     }
   }
 
-  function removeTag(tag: string) {
-    setTags((prev) => prev.filter((t) => t !== tag));
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
-    // Validate
-    if (mode === 'new' && !previewFile) {
-      setError('Preview image is required');
+    const filledSlots = slots.filter((s) => s.type !== 'empty');
+    if (filledSlots.length === 0) {
+      setError('At least one image is required');
       return;
     }
     if (mode === 'new' && !deliverableFile) {
@@ -109,23 +119,33 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     formData.set('price', priceUsd);
     formData.set('is_active', String(isActive));
     formData.set('tags', tags.join(','));
-
-    if (previewFile) formData.set('preview_image', previewFile);
     if (deliverableFile) formData.set('deliverable_file', deliverableFile);
-    additionalFiles.forEach((f) => formData.append('additional_images', f));
+
+    const coverSlot = slots[0];
+    const additionalSlots = slots.slice(1).filter((s) => s.type !== 'empty');
+
+    if (coverSlot.type === 'new') {
+      formData.set('preview_image', coverSlot.file);
+    } else if (coverSlot.type === 'existing') {
+      formData.set('keep_preview_url', coverSlot.url);
+    }
+
+    const keepAdditional: string[] = [];
+    additionalSlots.forEach((slot) => {
+      if (slot.type === 'existing') {
+        keepAdditional.push(slot.url);
+      } else if (slot.type === 'new') {
+        formData.append('additional_images', slot.file);
+      }
+    });
+    formData.set('keep_additional_urls', JSON.stringify(keepAdditional));
 
     try {
-      const url =
-        mode === 'new'
-          ? '/api/admin/products'
-          : `/api/admin/products/${product!.id}`;
+      const url = mode === 'new' ? '/api/admin/products' : `/api/admin/products/${product!.id}`;
       const method = mode === 'new' ? 'POST' : 'PATCH';
-
       const res = await fetch(url, { method, body: formData });
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error ?? 'Failed to save product');
-
       toast.success(mode === 'new' ? 'Product created!' : 'Product updated!');
       router.push('/admin/products');
       router.refresh();
@@ -136,12 +156,9 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     }
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
 
-      {/* Name */}
       <Input
         id="name"
         label="Product Name *"
@@ -151,9 +168,8 @@ export function ProductForm({ mode, product }: ProductFormProps) {
         required
       />
 
-      {/* Description */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="description" className="text-sm font-medium text-[#EDEDED]">
+        <label htmlFor="description" className="text-sm font-medium text-fg">
           Description
         </label>
         <textarea
@@ -162,11 +178,10 @@ export function ProductForm({ mode, product }: ProductFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
           placeholder="Describe your product…"
-          className="w-full rounded-lg bg-[#111111] border border-[#1F1F1F] px-3 py-2.5 text-sm text-[#EDEDED] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#5B21B6] focus:border-transparent resize-none"
+          className="w-full rounded-lg bg-card border border-edge px-3 py-2.5 text-sm text-fg placeholder:text-fg-faint focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
         />
       </div>
 
-      {/* Category + Price */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <Select
           id="category"
@@ -193,113 +208,101 @@ export function ProductForm({ mode, product }: ProductFormProps) {
         />
       </div>
 
-      {/* Preview Image */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-[#EDEDED]">
-          Preview Image {mode === 'new' ? '*' : '(leave empty to keep current)'}
-        </label>
-        <div
-          className="relative border-2 border-dashed border-[#1F1F1F] rounded-xl p-6 text-center hover:border-[#5B21B6]/50 transition-colors cursor-pointer"
-          onClick={() => previewInputRef.current?.click()}
-        >
-          {previewObjectUrl ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="relative w-32 h-32 rounded-lg overflow-hidden">
-                <Image
-                  src={previewObjectUrl}
-                  alt="Preview"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <p className="text-xs text-[#9CA3AF]">{previewFile?.name}</p>
-            </div>
-          ) : product?.preview_image_url && mode === 'edit' ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="relative w-32 h-32 rounded-lg overflow-hidden opacity-60">
-                <Image
-                  src={product.preview_image_url}
-                  alt="Current preview"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <p className="text-xs text-[#6B7280]">Current image — click to replace</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <ImagePlus size={32} className="text-[#2D2D2D]" />
-              <p className="text-sm text-[#9CA3AF]">Click to upload preview image</p>
-              <p className="text-xs text-[#6B7280]">JPG, PNG, WebP</p>
-            </div>
-          )}
-          <input
-            ref={previewInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handlePreviewChange}
-          />
+      {/* Unified image grid */}
+      <div className="space-y-3">
+        <div>
+          <label className="text-sm font-medium text-fg">
+            Images {mode === 'new' ? '*' : ''}
+          </label>
+          <p className="text-xs text-fg-faint mt-0.5">
+            First image is the cover shown on the store. Click <Star size={10} className="inline" /> to set any image as cover.
+          </p>
         </div>
-      </div>
-
-      {/* Additional Images */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-[#EDEDED]">
-          Additional Images
-        </label>
-        <div className="flex flex-wrap gap-3">
-          {additionalPreviews.map((url, i) => (
-            <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden group">
-              <Image src={url} alt={`Additional ${i + 1}`} fill className="object-cover" />
-              <button
-                type="button"
-                onClick={() => removeAdditional(i)}
-                className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X size={16} className="text-white" />
-              </button>
+        <div className="grid grid-cols-5 gap-2">
+          {slots.map((slot, i) => (
+            <div key={i} className="relative group">
+              {slot.type !== 'empty' ? (
+                <div className="relative aspect-square rounded-xl overflow-hidden border-2 border-edge">
+                  <Image
+                    src={slot.type === 'new' ? slot.previewUrl : slot.url}
+                    alt={`Image ${i + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="120px"
+                  />
+                  {/* Cover badge */}
+                  {i === 0 && (
+                    <div className="absolute top-1 left-1 bg-primary rounded-full px-1.5 py-0.5 flex items-center gap-0.5">
+                      <Star size={9} className="text-white fill-white" />
+                      <span className="text-[9px] text-white font-semibold">Cover</span>
+                    </div>
+                  )}
+                  {/* Hover controls */}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                    {i !== 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setCover(i)}
+                        title="Set as cover"
+                        className="bg-white/20 hover:bg-primary rounded-full p-1.5 transition-colors"
+                      >
+                        <Star size={12} className="text-white" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeSlot(i)}
+                      title="Remove"
+                      className="bg-white/20 hover:bg-red-500 rounded-full p-1.5 transition-colors"
+                    >
+                      <X size={12} className="text-white" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRefs.current[i]?.click()}
+                  className="w-full aspect-square rounded-xl border-2 border-dashed border-edge hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-1"
+                >
+                  <Upload size={16} className="text-fg-faint" />
+                  {i === 0 && <span className="text-[10px] text-fg-faint">Cover</span>}
+                </button>
+              )}
+              <input
+                ref={(el) => { fileInputRefs.current[i] = el; }}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleSlotFileChange(i, e)}
+              />
             </div>
           ))}
-          <label className="w-20 h-20 rounded-lg border-2 border-dashed border-[#1F1F1F] hover:border-[#5B21B6]/50 transition-colors flex items-center justify-center cursor-pointer">
-            <Upload size={20} className="text-[#6B7280]" />
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleAdditionalChange}
-            />
-          </label>
         </div>
       </div>
 
       {/* Deliverable File */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-[#EDEDED]">
+        <label className="text-sm font-medium text-fg">
           Deliverable File {mode === 'new' ? '*' : '(leave empty to keep current)'}
         </label>
-        <label className="flex items-center gap-4 border border-[#1F1F1F] rounded-xl px-4 py-4 hover:border-[#5B21B6]/50 transition-colors cursor-pointer">
-          <FileText size={24} className="text-[#9CA3AF] shrink-0" />
+        <label className="flex items-center gap-4 border border-edge rounded-xl px-4 py-4 hover:border-primary/50 transition-colors cursor-pointer">
+          <FileText size={24} className="text-fg-muted shrink-0" />
           <div className="flex-1 min-w-0">
             {deliverableFile ? (
               <>
-                <p className="text-sm text-[#EDEDED] truncate">{deliverableFile.name}</p>
-                <p className="text-xs text-[#9CA3AF]">
-                  {(deliverableFile.size / 1024 / 1024).toFixed(2)} MB
-                </p>
+                <p className="text-sm text-fg truncate">{deliverableFile.name}</p>
+                <p className="text-xs text-fg-muted">{(deliverableFile.size / 1024 / 1024).toFixed(2)} MB</p>
               </>
             ) : mode === 'edit' && product?.file_path ? (
               <>
-                <p className="text-sm text-[#EDEDED] truncate">
-                  {product.file_path.split('/').pop()}
-                </p>
-                <p className="text-xs text-[#6B7280]">Current file — click to replace</p>
+                <p className="text-sm text-fg truncate">{product.file_path.split('/').pop()}</p>
+                <p className="text-xs text-fg-faint">Current file — click to replace</p>
               </>
             ) : (
               <>
-                <p className="text-sm text-[#9CA3AF]">Click to upload deliverable file</p>
-                <p className="text-xs text-[#6B7280]">ZIP, PNG, PDF, or any format</p>
+                <p className="text-sm text-fg-muted">Click to upload deliverable file</p>
+                <p className="text-xs text-fg-faint">ZIP, PNG, PDF, or any format</p>
               </>
             )}
           </div>
@@ -312,32 +315,25 @@ export function ProductForm({ mode, product }: ProductFormProps) {
       </div>
 
       {/* Active toggle */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-[#111111] border border-[#1F1F1F]">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-card border border-edge">
         <div>
-          <p className="text-sm font-medium text-[#EDEDED]">Active</p>
-          <p className="text-xs text-[#6B7280] mt-0.5">
-            Active products appear on the storefront
-          </p>
+          <p className="text-sm font-medium text-fg">Active</p>
+          <p className="text-xs text-fg-faint mt-0.5">Active products appear on the storefront</p>
         </div>
         <Toggle checked={isActive} onChange={setIsActive} />
       </div>
 
       {/* Tags */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-[#EDEDED]">Tags</label>
-        <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-[#111111] border border-[#1F1F1F] min-h-[52px]">
+        <label className="text-sm font-medium text-fg">Tags</label>
+        <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-card border border-edge min-h-[52px]">
           {tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1.5 bg-[#5B21B6]/20 border border-[#5B21B6]/30 text-[#A78BFA] rounded-full px-3 py-1 text-xs font-medium"
+              className="inline-flex items-center gap-1.5 bg-primary/20 border border-primary/30 text-[#A78BFA] rounded-full px-3 py-1 text-xs font-medium"
             >
               {tag}
-              <button
-                type="button"
-                onClick={() => removeTag(tag)}
-                className="hover:text-white transition-colors"
-                aria-label={`Remove ${tag}`}
-              >
+              <button type="button" onClick={() => setTags((p) => p.filter((t) => t !== tag))} className="hover:text-white transition-colors" aria-label={`Remove ${tag}`}>
                 <X size={12} />
               </button>
             </span>
@@ -348,40 +344,25 @@ export function ProductForm({ mode, product }: ProductFormProps) {
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={handleTagKeyDown}
             placeholder={tags.length === 0 ? 'Type a tag and press Enter or comma' : ''}
-            className="flex-1 min-w-[120px] bg-transparent text-sm text-[#EDEDED] placeholder:text-[#6B7280] focus:outline-none"
+            className="flex-1 min-w-[120px] bg-transparent text-sm text-fg placeholder:text-fg-faint focus:outline-none"
           />
         </div>
-        <p className="text-xs text-[#6B7280]">Press Enter or comma to add a tag</p>
+        <p className="text-xs text-fg-faint">Press Enter or comma to add a tag</p>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">
           <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex items-center gap-3 pt-2">
         <Button type="submit" variant="primary" size="lg" isLoading={isSubmitting}>
           {isSubmitting ? (
-            <>
-              <Spinner size="sm" />
-              {mode === 'new' ? 'Creating…' : 'Saving…'}
-            </>
-          ) : mode === 'new' ? (
-            'Create Product'
-          ) : (
-            'Save Changes'
-          )}
+            <><Spinner size="sm" />{mode === 'new' ? 'Creating…' : 'Saving…'}</>
+          ) : mode === 'new' ? 'Create Product' : 'Save Changes'}
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          onClick={() => router.push('/admin/products')}
-          disabled={isSubmitting}
-        >
+        <Button type="button" variant="ghost" size="lg" onClick={() => router.push('/admin/products')} disabled={isSubmitting}>
           Cancel
         </Button>
       </div>

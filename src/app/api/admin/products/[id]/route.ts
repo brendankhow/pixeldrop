@@ -96,16 +96,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     ? tagsStr.split(',').map((t) => t.trim()).filter(Boolean)
     : current.tags;
 
-  // Optional file replacements
   const newPreviewFile = formData.get('preview_image');
   const newDeliverableFile = formData.get('deliverable_file');
+  const keepPreviewUrl = formData.get('keep_preview_url') as string | null;
+  const keepAdditionalJson = formData.get('keep_additional_urls') as string | null;
+  const newAdditionalFiles = formData.getAll('additional_images');
 
   let previewImageUrl = current.preview_image_url;
   let filePath = current.file_path;
 
-  // Duck-type check: same Blob-vs-File issue as the POST route.
   function isUploadedFile(v: FormDataEntryValue | null): v is File {
     return !!v && typeof (v as Blob).size === 'number' && (v as Blob).size > 0;
+  }
+
+  let keepAdditional: string[] = [];
+  if (keepAdditionalJson) {
+    try { keepAdditional = JSON.parse(keepAdditionalJson); } catch { /* ignore */ }
   }
 
   try {
@@ -113,12 +119,29 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       const newPath = await uploadToStorage(supabase, 'product-previews', newPreviewFile, 'preview');
       const { data } = supabase.storage.from('product-previews').getPublicUrl(newPath);
       previewImageUrl = data.publicUrl;
+    } else if (keepPreviewUrl) {
+      previewImageUrl = keepPreviewUrl;
     }
     if (isUploadedFile(newDeliverableFile)) {
       filePath = await uploadToStorage(supabase, 'product-files', newDeliverableFile, 'file');
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'File upload failed';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+
+  // Upload new additional images and merge with kept existing ones
+  let additionalImages: string[] = [...keepAdditional];
+  try {
+    for (const f of newAdditionalFiles) {
+      if (isUploadedFile(f)) {
+        const path = await uploadToStorage(supabase, 'product-previews', f, 'additional');
+        const { data } = supabase.storage.from('product-previews').getPublicUrl(path);
+        additionalImages.push(data.publicUrl);
+      }
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Additional image upload failed';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
@@ -152,6 +175,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       price: priceCents,
       category,
       preview_image_url: previewImageUrl,
+      additional_images: additionalImages.length > 0 ? additionalImages : null,
       file_path: filePath,
       is_active: isActive,
       tags,

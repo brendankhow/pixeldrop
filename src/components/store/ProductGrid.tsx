@@ -35,16 +35,14 @@ export function ProductGrid({ products }: ProductGridProps) {
             onClick={() => setActiveTab(tab.value)}
             className={`shrink-0 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 min-h-[44px] ${
               activeTab === tab.value
-                ? 'bg-[#5B21B6] text-white shadow-lg shadow-[#5B21B6]/30'
-                : 'bg-[#111111] text-[#9CA3AF] border border-[#1F1F1F] hover:text-[#EDEDED] hover:border-[#2D2D2D]'
+                ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                : 'bg-card text-fg-muted border border-edge hover:text-fg hover:border-edge-2'
             }`}
           >
             {tab.label}
-            {tab.value !== 'all' && (
-              <span className="ml-1.5 text-xs opacity-60">
-                ({products.filter((p) => p.category === tab.value).length})
-              </span>
-            )}
+            <span className="ml-1.5 text-xs opacity-60">
+              ({tab.value === 'all' ? products.length : products.filter((p) => p.category === tab.value).length})
+            </span>
           </button>
         ))}
       </div>
@@ -52,8 +50,8 @@ export function ProductGrid({ products }: ProductGridProps) {
       {/* Product grid */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-[#9CA3AF] text-lg">No products in this category yet.</p>
-          <p className="text-[#6B7280] text-sm mt-2">Check back soon!</p>
+          <p className="text-fg-muted text-lg">No products in this category yet.</p>
+          <p className="text-fg-faint text-sm mt-2">Check back soon!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
