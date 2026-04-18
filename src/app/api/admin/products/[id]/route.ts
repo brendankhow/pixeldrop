@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { stripe } from '@/lib/stripe';
@@ -12,23 +11,6 @@ async function requireAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
-}
-
-// ── Upload helper ─────────────────────────────────────────────────────────────
-async function uploadToStorage(
-  supabase: ReturnType<typeof createServiceClient>,
-  bucket: string,
-  file: File,
-  suffix: string
-): Promise<string> {
-  const ext = file.name.split('.').pop() ?? 'bin';
-  const path = `${randomUUID()}-${suffix}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error } = await supabase.storage
-    .from(bucket)
-    .upload(path, buffer, { contentType: file.type, upsert: false });
-  if (error) throw new Error(`Storage upload failed: ${error.message}`);
-  return path;
 }
 
 // ── PATCH /api/admin/products/[id] ────────────────────────────────────────────
@@ -99,17 +81,26 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     ? tagsStr.split(',').map((t) => t.trim()).filter(Boolean)
     : current.tags;
 
-  const newPreviewFile = formData.get('preview_image');
-  const newDeliverableFile = formData.get('deliverable_file');
+  // Files are uploaded directly from the browser to Supabase Storage.
+  // The API only receives storage paths (no file blobs cross Vercel's body limit).
+  const newPreviewImagePath = formData.get('preview_image_path') as string | null;
+  const newDeliverableFilePath = formData.get('deliverable_file_path') as string | null;
   const keepPreviewUrl = formData.get('keep_preview_url') as string | null;
   const keepAdditionalJson = formData.get('keep_additional_urls') as string | null;
-  const newAdditionalFiles = formData.getAll('additional_images');
+  const newAdditionalPathsJson = formData.get('new_additional_paths') as string | null;
 
   let previewImageUrl = current.preview_image_url;
   let filePath = current.file_path;
 
-  function isUploadedFile(v: FormDataEntryValue | null): v is File {
-    return !!v && typeof (v as Blob).size === 'number' && (v as Blob).size > 0;
+  if (newPreviewImagePath) {
+    const { data } = supabase.storage.from('product-previews').getPublicUrl(newPreviewImagePath);
+    previewImageUrl = data.publicUrl;
+  } else if (keepPreviewUrl) {
+    previewImageUrl = keepPreviewUrl;
+  }
+
+  if (newDeliverableFilePath) {
+    filePath = newDeliverableFilePath;
   }
 
   let keepAdditional: string[] = [];
@@ -117,36 +108,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     try { keepAdditional = JSON.parse(keepAdditionalJson); } catch { /* ignore */ }
   }
 
-  try {
-    if (isUploadedFile(newPreviewFile)) {
-      const newPath = await uploadToStorage(supabase, 'product-previews', newPreviewFile, 'preview');
-      const { data } = supabase.storage.from('product-previews').getPublicUrl(newPath);
-      previewImageUrl = data.publicUrl;
-    } else if (keepPreviewUrl) {
-      previewImageUrl = keepPreviewUrl;
-    }
-    if (isUploadedFile(newDeliverableFile)) {
-      filePath = await uploadToStorage(supabase, 'product-files', newDeliverableFile, 'file');
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'File upload failed';
-    return NextResponse.json({ error: msg }, { status: 500 });
+  let newAdditionalUrls: string[] = [];
+  if (newAdditionalPathsJson) {
+    try {
+      const paths: string[] = JSON.parse(newAdditionalPathsJson);
+      newAdditionalUrls = paths.map((p) => {
+        const { data } = supabase.storage.from('product-previews').getPublicUrl(p);
+        return data.publicUrl;
+      });
+    } catch { /* ignore */ }
   }
 
-  // Upload new additional images and merge with kept existing ones
-  let additionalImages: string[] = [...keepAdditional];
-  try {
-    for (const f of newAdditionalFiles) {
-      if (isUploadedFile(f)) {
-        const path = await uploadToStorage(supabase, 'product-previews', f, 'additional');
-        const { data } = supabase.storage.from('product-previews').getPublicUrl(path);
-        additionalImages.push(data.publicUrl);
-      }
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Additional image upload failed';
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
+  const additionalImages: string[] = [...keepAdditional, ...newAdditionalUrls];
 
   // ── If price changed: create new Stripe Price, archive old one ────────────
   let stripePriceId = current.stripe_price_id;

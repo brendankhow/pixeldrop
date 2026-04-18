@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Toggle } from '@/components/ui/Toggle';
 import { Spinner } from '@/components/ui/Spinner';
+import { createClient } from '@/lib/supabase/client';
 import type { Product } from '@/types';
 
 const MAX_IMAGES = 5;
@@ -96,6 +97,25 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     }
   }
 
+  // Upload a single file directly to Supabase Storage (bypasses Vercel's 4.5 MB body limit).
+  // Returns the storage path (not a URL).
+  async function uploadFileDirect(bucket: string, file: File): Promise<string> {
+    const res = await fetch('/api/admin/upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bucket, filename: file.name }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json();
+      throw new Error(error ?? 'Failed to get upload URL');
+    }
+    const { path, token } = await res.json();
+    const supabase = createClient();
+    const { error } = await supabase.storage.from(bucket).uploadToSignedUrl(path, token, file);
+    if (error) throw new Error(`Upload failed: ${error.message}`);
+    return path as string;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -112,35 +132,51 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 
     setIsSubmitting(true);
 
-    const formData = new FormData();
-    formData.set('name', name);
-    formData.set('description', description);
-    formData.set('category', category);
-    formData.set('price', priceUsd);
-    formData.set('is_active', String(isActive));
-    formData.set('tags', tags.join(','));
-    if (deliverableFile) formData.set('deliverable_file', deliverableFile);
-
     const coverSlot = slots[0];
     const additionalSlots = slots.slice(1).filter((s) => s.type !== 'empty');
 
-    if (coverSlot.type === 'new') {
-      formData.set('preview_image', coverSlot.file);
-    } else if (coverSlot.type === 'existing') {
-      formData.set('keep_preview_url', coverSlot.url);
-    }
-
-    const keepAdditional: string[] = [];
-    additionalSlots.forEach((slot) => {
-      if (slot.type === 'existing') {
-        keepAdditional.push(slot.url);
-      } else if (slot.type === 'new') {
-        formData.append('additional_images', slot.file);
-      }
-    });
-    formData.set('keep_additional_urls', JSON.stringify(keepAdditional));
-
     try {
+      // Upload files directly to Supabase Storage — no Vercel body limit involved
+      let previewImagePath: string | null = null;
+      const additionalPaths: string[] = [];
+      let deliverableFilePath: string | null = null;
+
+      if (coverSlot.type === 'new') {
+        previewImagePath = await uploadFileDirect('product-previews', coverSlot.file);
+      }
+      for (const slot of additionalSlots) {
+        if (slot.type === 'new') {
+          additionalPaths.push(await uploadFileDirect('product-previews', slot.file));
+        }
+      }
+      if (deliverableFile) {
+        deliverableFilePath = await uploadFileDirect('product-files', deliverableFile);
+      }
+
+      // Build FormData with storage paths (not file blobs)
+      const formData = new FormData();
+      formData.set('name', name);
+      formData.set('description', description);
+      formData.set('category', category);
+      formData.set('price', priceUsd);
+      formData.set('is_active', String(isActive));
+      formData.set('tags', tags.join(','));
+
+      if (previewImagePath) {
+        formData.set('preview_image_path', previewImagePath);
+      } else if (coverSlot.type === 'existing') {
+        formData.set('keep_preview_url', coverSlot.url);
+      }
+
+      const keepAdditional: string[] = [];
+      additionalSlots.forEach((slot) => {
+        if (slot.type === 'existing') keepAdditional.push(slot.url);
+      });
+      formData.set('keep_additional_urls', JSON.stringify(keepAdditional));
+      formData.set('new_additional_paths', JSON.stringify(additionalPaths));
+
+      if (deliverableFilePath) formData.set('deliverable_file_path', deliverableFilePath);
+
       const url = mode === 'new' ? '/api/admin/products' : `/api/admin/products/${product!.id}`;
       const method = mode === 'new' ? 'POST' : 'PATCH';
       const res = await fetch(url, { method, body: formData });

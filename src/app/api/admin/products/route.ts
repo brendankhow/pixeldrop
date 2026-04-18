@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { stripe } from '@/lib/stripe';
@@ -9,25 +8,6 @@ async function requireAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
-}
-
-// ── Upload helper ─────────────────────────────────────────────────────────────
-async function uploadToStorage(
-  supabase: ReturnType<typeof createServiceClient>,
-  bucket: string,
-  file: File,
-  suffix: string
-): Promise<string> {
-  const ext = file.name.split('.').pop() ?? 'bin';
-  const path = `${randomUUID()}-${suffix}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  const { error } = await supabase.storage
-    .from(bucket)
-    .upload(path, buffer, { contentType: file.type, upsert: false });
-
-  if (error) throw new Error(`Storage upload failed: ${error.message}`);
-  return path;
 }
 
 // ── GET /api/admin/products ───────────────────────────────────────────────────
@@ -65,71 +45,46 @@ export async function POST(request: NextRequest) {
   const isActiveStr = formData.get('is_active') as string | null;
   const tagsStr = (formData.get('tags') as string | null) ?? '';
 
-  const previewFile = formData.get('preview_image');
-  const deliverableFile = formData.get('deliverable_file');
-  const additionalImageEntries = formData.getAll('additional_images');
+  // Files are uploaded directly from the browser to Supabase Storage.
+  // The API only receives the resulting storage paths.
+  const previewImagePath = formData.get('preview_image_path') as string | null;
+  const deliverableFilePath = formData.get('deliverable_file_path') as string | null;
+  const newAdditionalPathsJson = formData.get('new_additional_paths') as string | null;
 
   // ── Validate ────────────────────────────────────────────────────────────────
   if (!name) return NextResponse.json({ error: 'Product name is required' }, { status: 400 });
   if (!category) return NextResponse.json({ error: 'Category is required' }, { status: 400 });
   if (!priceStr) return NextResponse.json({ error: 'Price is required' }, { status: 400 });
+  if (!previewImagePath) return NextResponse.json({ error: 'Preview image is required' }, { status: 400 });
+  if (!deliverableFilePath) return NextResponse.json({ error: 'Deliverable file is required' }, { status: 400 });
 
   const priceUsd = parseFloat(priceStr);
   if (isNaN(priceUsd) || priceUsd < 0.5) {
     return NextResponse.json({ error: 'Price must be at least $0.50' }, { status: 400 });
   }
   const priceCents = Math.round(priceUsd * 100);
-
-  // Use duck-typing instead of `instanceof File`.
-  // In Next.js 16 + Node 20 the FormData entries for file inputs are Blob-derived
-  // objects from the Web Streams API, not the Node.js global `File` class, so
-  // `instanceof File` evaluates to false even when a real file was uploaded.
-  function isUploadedFile(v: FormDataEntryValue | null): v is File {
-    return !!v && typeof (v as Blob).size === 'number' && (v as Blob).size > 0;
-  }
-
-  if (!isUploadedFile(previewFile)) {
-    return NextResponse.json({ error: 'Preview image is required' }, { status: 400 });
-  }
-  if (!isUploadedFile(deliverableFile)) {
-    return NextResponse.json({ error: 'Deliverable file is required' }, { status: 400 });
-  }
-
   const isActive = isActiveStr !== 'false';
   const tags = tagsStr ? tagsStr.split(',').map((t) => t.trim()).filter(Boolean) : [];
-  const additionalImageFiles = additionalImageEntries.filter(isUploadedFile);
 
   const supabase = createServiceClient();
 
-  // ── Upload files ─────────────────────────────────────────────────────────────
-  let previewPath: string;
-  let filePath: string;
+  // ── Derive public URLs from storage paths ─────────────────────────────────
+  const { data: previewUrlData } = supabase.storage
+    .from('product-previews')
+    .getPublicUrl(previewImagePath);
+  const previewImageUrl = previewUrlData.publicUrl;
+  const filePath = deliverableFilePath;
+
   let additionalImageUrls: string[] = [];
-
-  try {
-    previewPath = await uploadToStorage(supabase, 'product-previews', previewFile, 'preview');
-    filePath = await uploadToStorage(supabase, 'product-files', deliverableFile, 'file');
-
-    if (additionalImageFiles.length > 0) {
-      const additionalPaths = await Promise.all(
-        additionalImageFiles.map((f, i) =>
-          uploadToStorage(supabase, 'product-previews', f, `additional-${i}`)
-        )
-      );
-      additionalImageUrls = additionalPaths.map((p) => {
+  if (newAdditionalPathsJson) {
+    try {
+      const paths: string[] = JSON.parse(newAdditionalPathsJson);
+      additionalImageUrls = paths.map((p) => {
         const { data } = supabase.storage.from('product-previews').getPublicUrl(p);
         return data.publicUrl;
       });
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'File upload failed';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    } catch { /* ignore malformed JSON */ }
   }
-
-  const { data: previewUrlData } = supabase.storage
-    .from('product-previews')
-    .getPublicUrl(previewPath);
-  const previewImageUrl = previewUrlData.publicUrl;
 
   // ── Create Stripe Product + Price ────────────────────────────────────────────
   let stripeProductId: string;
