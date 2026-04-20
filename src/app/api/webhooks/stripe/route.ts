@@ -120,11 +120,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   // ── Fetch product details from Supabase ─────────────────────────────────────
   const { data: products, error: productsError } = await supabase
     .from('products')
-    .select('id, name, price, file_path')
+    .select('id, name, price, file_path, file_paths')
     .in('id', productIds);
 
   if (productsError) throw productsError;
-  const fetchedProducts = (products ?? []) as Pick<Product, 'id' | 'name' | 'price' | 'file_path'>[];
+  const fetchedProducts = (products ?? []) as Pick<Product, 'id' | 'name' | 'price' | 'file_path' | 'file_paths'>[];
 
   const orderProducts = fetchedProducts.map((p) => ({
     id: p.id,
@@ -154,18 +154,25 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const orderId = newOrder.id;
   console.log(`[webhook] Order ${orderId} created for session ${sessionId}`);
 
-  // ── Generate signed download URLs ───────────────────────────────────────────
-  const downloadLinks = await Promise.all(
-    fetchedProducts.map(async (product) => {
-      try {
-        const url = await generateSignedUrl(product.file_path);
-        return { productName: product.name, url };
-      } catch (err) {
-        // File may not exist yet (e.g. seed data with placeholder paths) — log and continue
-        console.error(`[webhook] Could not generate signed URL for "${product.file_path}":`, err);
-        return { productName: product.name, url: '#' };
-      }
-    })
+  // ── Generate signed download URLs (one per deliverable file per product) ────
+  const downloadLinks = (
+    await Promise.all(
+      fetchedProducts.flatMap((product) => {
+        const paths = product.file_paths?.length ? product.file_paths : [product.file_path];
+        return paths.map(async (filePath) => {
+          const label = paths.length > 1
+            ? `${product.name} — ${filePath.split('/').pop()}`
+            : product.name;
+          try {
+            const url = await generateSignedUrl(filePath);
+            return { productName: label, url };
+          } catch (err) {
+            console.error(`[webhook] Could not generate signed URL for "${filePath}":`, err);
+            return { productName: label, url: '#' };
+          }
+        });
+      })
+    )
   );
 
   // ── Send delivery email — failure keeps status = 'paid', admin can resend ──

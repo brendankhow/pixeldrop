@@ -84,13 +84,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // Files are uploaded directly from the browser to Supabase Storage.
   // The API only receives storage paths (no file blobs cross Vercel's body limit).
   const newPreviewImagePath = formData.get('preview_image_path') as string | null;
-  const newDeliverableFilePath = formData.get('deliverable_file_path') as string | null;
   const keepPreviewUrl = formData.get('keep_preview_url') as string | null;
   const keepAdditionalJson = formData.get('keep_additional_urls') as string | null;
   const newAdditionalPathsJson = formData.get('new_additional_paths') as string | null;
+  const keepFilePathsJson = formData.get('keep_file_paths') as string | null;
+  const newDeliverablePathsJson = formData.get('new_deliverable_paths') as string | null;
 
   let previewImageUrl = current.preview_image_url;
-  let filePath = current.file_path;
 
   if (newPreviewImagePath) {
     const { data } = supabase.storage.from('product-previews').getPublicUrl(newPreviewImagePath);
@@ -99,9 +99,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     previewImageUrl = keepPreviewUrl;
   }
 
-  if (newDeliverableFilePath) {
-    filePath = newDeliverableFilePath;
+  // Build the merged file_paths array
+  let keepFilePaths: string[] = current.file_paths?.length
+    ? current.file_paths
+    : current.file_path ? [current.file_path] : [];
+  if (keepFilePathsJson) {
+    try { keepFilePaths = JSON.parse(keepFilePathsJson); } catch { /* ignore */ }
   }
+  let newDeliverablePaths: string[] = [];
+  if (newDeliverablePathsJson) {
+    try { newDeliverablePaths = JSON.parse(newDeliverablePathsJson); } catch { /* ignore */ }
+  }
+  const mergedFilePaths = [...keepFilePaths, ...newDeliverablePaths];
+  const filePath = mergedFilePaths[0] ?? current.file_path;
 
   let keepAdditional: string[] = [];
   if (keepAdditionalJson) {
@@ -153,6 +163,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       preview_image_url: previewImageUrl,
       additional_images: additionalImages.length > 0 ? additionalImages : null,
       file_path: filePath,
+      file_paths: mergedFilePaths.length > 0 ? mergedFilePaths : null,
       is_active: isActive,
       tags,
       stripe_price_id: stripePriceId,

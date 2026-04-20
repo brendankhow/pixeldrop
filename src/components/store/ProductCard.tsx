@@ -6,6 +6,7 @@ import { Check, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { useCartStore } from '@/lib/cart-store';
 import { formatPrice } from '@/lib/utils';
+import { trackEvent } from '@/lib/tracking';
 import type { Product } from '@/types';
 
 const categoryLabels: Record<Product['category'], string> = {
@@ -30,6 +31,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
     addItem(product);
     setAdded(true);
     openCart();
+    trackEvent('cart_add', { product_id: product.id, product_name: product.name });
     setTimeout(() => setAdded(false), 2000);
   }
 

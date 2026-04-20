@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   const productIds = typedOrder.products.map((p) => p.id);
   const { data: products, error: productsError } = await supabase
     .from('products')
-    .select('id, name, price, file_path')
+    .select('id, name, price, file_path, file_paths')
     .in('id', productIds);
 
   if (productsError) {
@@ -54,18 +54,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const fetchedProducts = (products ?? []) as Pick<Product, 'id' | 'name' | 'price' | 'file_path'>[];
+  const fetchedProducts = (products ?? []) as Pick<Product, 'id' | 'name' | 'price' | 'file_path' | 'file_paths'>[];
 
-  // ── Generate fresh signed URLs ──────────────────────────────────────────────
+  // ── Generate fresh signed URLs (one per deliverable file per product) ────────
   const downloadLinks = await Promise.all(
-    fetchedProducts.map(async (product) => {
-      try {
-        const url = await generateSignedUrl(product.file_path);
-        return { productName: product.name, url };
-      } catch (err) {
-        console.error(`[resend-email] Could not generate signed URL for "${product.file_path}":`, err);
-        return { productName: product.name, url: '#' };
-      }
+    fetchedProducts.flatMap((product) => {
+      const paths = product.file_paths?.length ? product.file_paths : [product.file_path];
+      return paths.map(async (filePath) => {
+        const label = paths.length > 1
+          ? `${product.name} — ${filePath.split('/').pop()}`
+          : product.name;
+        try {
+          const url = await generateSignedUrl(filePath);
+          return { productName: label, url };
+        } catch (err) {
+          console.error(`[resend-email] Could not generate signed URL for "${filePath}":`, err);
+          return { productName: label, url: '#' };
+        }
+      });
     })
   );
 

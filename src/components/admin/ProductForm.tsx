@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { X, Upload, FileText, Star } from 'lucide-react';
+import { X, Upload, FileText, Star, FolderOpen, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -35,9 +35,22 @@ export function ProductForm({ mode, product }: ProductFormProps) {
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
   const [tags, setTags] = useState<string[]>(product?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
-  const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Deliverables: existing paths to keep + new files to upload
+  const existingFilePaths = (): string[] => {
+    if (mode === 'edit' && product) {
+      if (product.file_paths?.length) return product.file_paths;
+      if (product.file_path) return [product.file_path];
+    }
+    return [];
+  };
+  const [keepFilePaths, setKeepFilePaths] = useState<string[]>(existingFilePaths);
+  const [newDeliverableFiles, setNewDeliverableFiles] = useState<File[]>([]);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
 
   // Unified image slots — slot[0] is always the cover/preview
   const initialSlots = (): ImageSlot[] => {
@@ -51,7 +64,7 @@ export function ProductForm({ mode, product }: ProductFormProps) {
   };
 
   const [slots, setSlots] = useState<ImageSlot[]>(initialSlots);
-  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const imageInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   function handleSlotFileChange(index: number, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -88,6 +101,21 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     });
   }
 
+  function handleDeliverableFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setNewDeliverableFiles((prev) => [...prev, ...files]);
+    e.target.value = '';
+  }
+
+  function removeNewDeliverable(index: number) {
+    setNewDeliverableFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function removeKeepDeliverable(path: string) {
+    setKeepFilePaths((prev) => prev.filter((p) => p !== path));
+  }
+
   function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -97,13 +125,12 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     }
   }
 
-  // Upload a single file directly to Supabase Storage (bypasses Vercel's 4.5 MB body limit).
-  // Returns the storage path (not a URL).
-  async function uploadFileDirect(bucket: string, file: File): Promise<string> {
+  async function uploadFileDirect(bucket: string, file: File, storagePath?: string): Promise<string> {
+    const filename = storagePath ?? file.name;
     const res = await fetch('/api/admin/upload-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bucket, filename: file.name }),
+      body: JSON.stringify({ bucket, filename }),
     });
     if (!res.ok) {
       const { error } = await res.json();
@@ -125,8 +152,10 @@ export function ProductForm({ mode, product }: ProductFormProps) {
       setError('At least one image is required');
       return;
     }
-    if (mode === 'new' && !deliverableFile) {
-      setError('Deliverable file is required');
+
+    const totalDeliverables = keepFilePaths.length + newDeliverableFiles.length;
+    if (mode === 'new' && totalDeliverables === 0) {
+      setError('At least one deliverable file is required');
       return;
     }
 
@@ -136,10 +165,9 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     const additionalSlots = slots.slice(1).filter((s) => s.type !== 'empty');
 
     try {
-      // Upload files directly to Supabase Storage — no Vercel body limit involved
       let previewImagePath: string | null = null;
       const additionalPaths: string[] = [];
-      let deliverableFilePath: string | null = null;
+      const newDeliverablePaths: string[] = [];
 
       if (coverSlot.type === 'new') {
         previewImagePath = await uploadFileDirect('product-previews', coverSlot.file);
@@ -149,11 +177,12 @@ export function ProductForm({ mode, product }: ProductFormProps) {
           additionalPaths.push(await uploadFileDirect('product-previews', slot.file));
         }
       }
-      if (deliverableFile) {
-        deliverableFilePath = await uploadFileDirect('product-files', deliverableFile);
+      for (const file of newDeliverableFiles) {
+        // Preserve folder structure via webkitRelativePath if available
+        const storagePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+        newDeliverablePaths.push(await uploadFileDirect('product-files', file, storagePath));
       }
 
-      // Build FormData with storage paths (not file blobs)
       const formData = new FormData();
       formData.set('name', name);
       formData.set('description', description);
@@ -175,7 +204,9 @@ export function ProductForm({ mode, product }: ProductFormProps) {
       formData.set('keep_additional_urls', JSON.stringify(keepAdditional));
       formData.set('new_additional_paths', JSON.stringify(additionalPaths));
 
-      if (deliverableFilePath) formData.set('deliverable_file_path', deliverableFilePath);
+      // Multi-file deliverables
+      formData.set('keep_file_paths', JSON.stringify(keepFilePaths));
+      formData.set('new_deliverable_paths', JSON.stringify(newDeliverablePaths));
 
       const url = mode === 'new' ? '/api/admin/products' : `/api/admin/products/${product!.id}`;
       const method = mode === 'new' ? 'POST' : 'PATCH';
@@ -190,6 +221,11 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function formatBytes(bytes: number) {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   }
 
   return (
@@ -266,14 +302,12 @@ export function ProductForm({ mode, product }: ProductFormProps) {
                     className="object-cover"
                     sizes="120px"
                   />
-                  {/* Cover badge */}
                   {i === 0 && (
                     <div className="absolute top-1 left-1 bg-primary rounded-full px-1.5 py-0.5 flex items-center gap-0.5">
                       <Star size={9} className="text-white fill-white" />
                       <span className="text-[9px] text-white font-semibold">Cover</span>
                     </div>
                   )}
-                  {/* Hover controls */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                     {i !== 0 && (
                       <button
@@ -298,7 +332,7 @@ export function ProductForm({ mode, product }: ProductFormProps) {
               ) : (
                 <button
                   type="button"
-                  onClick={() => fileInputRefs.current[i]?.click()}
+                  onClick={() => imageInputRefs.current[i]?.click()}
                   className="w-full aspect-square rounded-xl border-2 border-dashed border-edge hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-1"
                 >
                   <Upload size={16} className="text-fg-faint" />
@@ -306,7 +340,7 @@ export function ProductForm({ mode, product }: ProductFormProps) {
                 </button>
               )}
               <input
-                ref={(el) => { fileInputRefs.current[i] = el; }}
+                ref={(el) => { imageInputRefs.current[i] = el; }}
                 type="file"
                 accept="image/*"
                 className="hidden"
@@ -317,37 +351,96 @@ export function ProductForm({ mode, product }: ProductFormProps) {
         </div>
       </div>
 
-      {/* Deliverable File */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-fg">
-          Deliverable File {mode === 'new' ? '*' : '(leave empty to keep current)'}
-        </label>
-        <label className="flex items-center gap-4 border border-edge rounded-xl px-4 py-4 hover:border-primary/50 transition-colors cursor-pointer">
-          <FileText size={24} className="text-fg-muted shrink-0" />
-          <div className="flex-1 min-w-0">
-            {deliverableFile ? (
-              <>
-                <p className="text-sm text-fg truncate">{deliverableFile.name}</p>
-                <p className="text-xs text-fg-muted">{(deliverableFile.size / 1024 / 1024).toFixed(2)} MB</p>
-              </>
-            ) : mode === 'edit' && product?.file_path ? (
-              <>
-                <p className="text-sm text-fg truncate">{product.file_path.split('/').pop()}</p>
-                <p className="text-xs text-fg-faint">Current file — click to replace</p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-fg-muted">Click to upload deliverable file</p>
-                <p className="text-xs text-fg-faint">ZIP, PNG, PDF, or any format</p>
-              </>
-            )}
+      {/* Deliverable Files */}
+      <div className="space-y-3">
+        <div>
+          <label className="text-sm font-medium text-fg">
+            Deliverable Files {mode === 'new' ? '*' : '(add more or remove existing)'}
+          </label>
+          <p className="text-xs text-fg-faint mt-0.5">
+            Upload individual files or entire folders. Customers receive download links for all files.
+          </p>
+        </div>
+
+        {/* File list */}
+        {(keepFilePaths.length > 0 || newDeliverableFiles.length > 0) && (
+          <div className="space-y-2">
+            {keepFilePaths.map((path) => (
+              <div key={path} className="flex items-center gap-3 rounded-xl border border-edge bg-card px-4 py-3">
+                <FileText size={18} className="text-fg-muted shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-fg truncate">{path.split('/').pop()}</p>
+                  <p className="text-xs text-fg-faint">Existing file</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeKeepDeliverable(path)}
+                  className="text-fg-faint hover:text-red-400 transition-colors shrink-0"
+                  title="Remove"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+            {newDeliverableFiles.map((file, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+                <FileText size={18} className="text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-fg truncate">
+                    {(file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name}
+                  </p>
+                  <p className="text-xs text-fg-faint">{formatBytes(file.size)} · New</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeNewDeliverable(i)}
+                  className="text-fg-faint hover:text-red-400 transition-colors shrink-0"
+                  title="Remove"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
           </div>
-          <input
-            type="file"
-            className="hidden"
-            onChange={(e) => setDeliverableFile(e.target.files?.[0] ?? null)}
-          />
-        </label>
+        )}
+
+        {/* Upload buttons */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-edge hover:border-primary/50 transition-colors px-4 py-3 text-sm text-fg-muted hover:text-fg"
+          >
+            <Plus size={15} />
+            Add Files
+          </button>
+          <button
+            type="button"
+            onClick={() => folderInputRef.current?.click()}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-edge hover:border-primary/50 transition-colors px-4 py-3 text-sm text-fg-muted hover:text-fg"
+          >
+            <FolderOpen size={15} />
+            Add Folder
+          </button>
+        </div>
+
+        {/* Hidden inputs */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={handleDeliverableFilesChange}
+        />
+        <input
+          ref={folderInputRef}
+          type="file"
+          // @ts-expect-error webkitdirectory is non-standard but widely supported
+          webkitdirectory=""
+          multiple
+          className="hidden"
+          onChange={handleDeliverableFilesChange}
+        />
       </div>
 
       {/* Active toggle */}

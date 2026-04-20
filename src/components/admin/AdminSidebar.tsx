@@ -8,6 +8,7 @@ import {
   Package,
   Receipt,
   Wand2,
+  Activity,
   LogOut,
   Menu,
   X,
@@ -20,6 +21,7 @@ const navItems = [
   { label: 'Products', href: '/admin/products', icon: Package },
   { label: 'Orders', href: '/admin/orders', icon: Receipt },
   { label: 'Playground', href: '/admin/playground', icon: Wand2 },
+  { label: 'Activity', href: '/admin/activity', icon: Activity },
 ];
 
 export function AdminSidebar() {

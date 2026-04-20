@@ -18,13 +18,6 @@ const categoryLabels: Record<Product['category'], string> = {
   other: 'Other',
 };
 
-const resolutionHints: Record<Product['category'], string> = {
-  iphone: '2556 × 1179 px · iPhone 15 Pro',
-  desktop: '3840 × 2160 px · 4K Desktop',
-  bundle: 'Multiple resolutions included',
-  other: 'High resolution',
-};
-
 export async function generateStaticParams() {
   try {
     const supabase = createPublicClient();
@@ -73,7 +66,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (error || !product) notFound();
 
   const p = product as Product;
-  const isPortrait = p.category === 'iphone';
 
   const { data: sameCategory } = await supabase
     .from('products')
@@ -118,7 +110,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             ...(p.additional_images ?? []),
           ]}
           productName={p.name}
-          isPortrait={isPortrait}
         />
 
         {/* Details */}
@@ -134,12 +125,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <h1 className="text-2xl sm:text-3xl font-bold text-fg leading-tight">{p.name}</h1>
             <p className="mt-3 text-4xl font-bold text-fg">${(p.price / 100).toFixed(2)}</p>
           </div>
-
-          {/* Resolution */}
-          <p className="text-sm text-fg-muted flex items-center gap-2">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-            {resolutionHints[p.category]}
-          </p>
 
           {/* Description */}
           {p.description && (

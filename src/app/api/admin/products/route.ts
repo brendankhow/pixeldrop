@@ -48,15 +48,22 @@ export async function POST(request: NextRequest) {
   // Files are uploaded directly from the browser to Supabase Storage.
   // The API only receives the resulting storage paths.
   const previewImagePath = formData.get('preview_image_path') as string | null;
-  const deliverableFilePath = formData.get('deliverable_file_path') as string | null;
   const newAdditionalPathsJson = formData.get('new_additional_paths') as string | null;
+  const newDeliverablePathsJson = formData.get('new_deliverable_paths') as string | null;
 
   // ── Validate ────────────────────────────────────────────────────────────────
   if (!name) return NextResponse.json({ error: 'Product name is required' }, { status: 400 });
   if (!category) return NextResponse.json({ error: 'Category is required' }, { status: 400 });
   if (!priceStr) return NextResponse.json({ error: 'Price is required' }, { status: 400 });
   if (!previewImagePath) return NextResponse.json({ error: 'Preview image is required' }, { status: 400 });
-  if (!deliverableFilePath) return NextResponse.json({ error: 'Deliverable file is required' }, { status: 400 });
+
+  let newDeliverablePaths: string[] = [];
+  if (newDeliverablePathsJson) {
+    try { newDeliverablePaths = JSON.parse(newDeliverablePathsJson); } catch { /* ignore */ }
+  }
+  if (newDeliverablePaths.length === 0) {
+    return NextResponse.json({ error: 'At least one deliverable file is required' }, { status: 400 });
+  }
 
   const priceUsd = parseFloat(priceStr);
   if (isNaN(priceUsd) || priceUsd < 0.5) {
@@ -73,7 +80,6 @@ export async function POST(request: NextRequest) {
     .from('product-previews')
     .getPublicUrl(previewImagePath);
   const previewImageUrl = previewUrlData.publicUrl;
-  const filePath = deliverableFilePath;
 
   let additionalImageUrls: string[] = [];
   if (newAdditionalPathsJson) {
@@ -117,7 +123,8 @@ export async function POST(request: NextRequest) {
       category,
       preview_image_url: previewImageUrl,
       additional_images: additionalImageUrls,
-      file_path: filePath,
+      file_path: newDeliverablePaths[0],
+      file_paths: newDeliverablePaths,
       is_active: isActive,
       tags,
       stripe_product_id: stripeProductId,

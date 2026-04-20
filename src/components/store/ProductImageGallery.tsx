@@ -6,26 +6,25 @@ import Image from 'next/image';
 interface ProductImageGalleryProps {
   images: string[];
   productName: string;
-  isPortrait: boolean;
 }
 
-export function ProductImageGallery({ images, productName, isPortrait }: ProductImageGalleryProps) {
+export function ProductImageGallery({ images, productName }: ProductImageGalleryProps) {
   const [active, setActive] = useState(0);
 
   if (images.length === 0) {
     return (
-      <div className={`relative w-full rounded-2xl overflow-hidden bg-card border border-edge ${isPortrait ? 'aspect-[9/16] max-w-xs mx-auto lg:mx-0' : 'aspect-[4/3]'}`}>
+      <div className="relative w-full rounded-2xl overflow-hidden bg-card border border-edge aspect-[4/3]">
         <div className="absolute inset-0 flex items-center justify-center text-fg-faint text-sm">No preview available</div>
       </div>
     );
   }
 
-  const thumbClass = isPortrait ? 'w-16 h-28' : 'w-20 h-16';
+  const thumbClass = 'w-20 h-16';
 
   return (
     <div className="space-y-3">
       {/* Main image */}
-      <div className={`relative w-full rounded-2xl overflow-hidden bg-card border border-edge ${isPortrait ? 'aspect-[9/16] max-w-xs mx-auto lg:mx-0' : 'aspect-[4/3]'}`}>
+      <div className="relative w-full rounded-2xl overflow-hidden bg-card border border-edge aspect-[4/3]">
         <Image
           key={active}
           src={images[active]}

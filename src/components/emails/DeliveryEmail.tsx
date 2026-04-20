@@ -104,7 +104,7 @@ export function DeliveryEmail({
 
 const styles: Record<string, React.CSSProperties> = {
   body: {
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#F3F4F6',
     fontFamily: 'system-ui, -apple-system, Helvetica Neue, Arial, sans-serif',
     margin: 0,
     padding: 0,
@@ -121,43 +121,43 @@ const styles: Record<string, React.CSSProperties> = {
   logoText: {
     fontSize: '22px',
     fontWeight: '700',
-    color: '#EDEDED',
+    color: '#111827',
     margin: '0',
     letterSpacing: '-0.02em',
   },
   tagline: {
     fontSize: '13px',
-    color: '#9CA3AF',
+    color: '#6B7280',
     margin: '6px 0 0',
   },
   card: {
-    backgroundColor: '#111111',
+    backgroundColor: '#FFFFFF',
     borderRadius: '16px',
     padding: '28px',
     marginBottom: '20px',
-    border: '1px solid #1F1F1F',
+    border: '1px solid #E5E7EB',
   },
   heading: {
     fontSize: '24px',
     fontWeight: '700',
-    color: '#EDEDED',
+    color: '#111827',
     margin: '0 0 10px',
     letterSpacing: '-0.02em',
   },
   subheading: {
     fontSize: '15px',
-    color: '#9CA3AF',
+    color: '#6B7280',
     margin: '0 0 24px',
     lineHeight: '1.6',
   },
   divider: {
-    borderColor: '#1F1F1F',
+    borderColor: '#E5E7EB',
     margin: '20px 0',
   },
   sectionLabel: {
     fontSize: '11px',
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#9CA3AF',
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
     margin: '0 0 14px',
@@ -167,25 +167,25 @@ const styles: Record<string, React.CSSProperties> = {
   },
   lineItemName: {
     fontSize: '14px',
-    color: '#EDEDED',
+    color: '#111827',
     margin: '0',
     display: 'inline',
   },
   lineItemPrice: {
     fontSize: '14px',
-    color: '#9CA3AF',
+    color: '#6B7280',
     margin: '2px 0 0',
   },
   totalLabel: {
     fontSize: '14px',
     fontWeight: '600',
-    color: '#EDEDED',
+    color: '#111827',
     margin: '0',
   },
   totalValue: {
     fontSize: '20px',
     fontWeight: '700',
-    color: '#EDEDED',
+    color: '#111827',
     margin: '2px 0 0',
   },
   downloadsSection: {
@@ -194,7 +194,7 @@ const styles: Record<string, React.CSSProperties> = {
   downloadsHeading: {
     fontSize: '16px',
     fontWeight: '600',
-    color: '#EDEDED',
+    color: '#111827',
     margin: '0 0 16px',
   },
   downloadRow: {
@@ -214,28 +214,28 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: 'border-box',
   },
   noteBox: {
-    backgroundColor: '#111111',
+    backgroundColor: '#F9FAFB',
     borderRadius: '10px',
     padding: '14px 18px',
     marginBottom: '24px',
-    border: '1px solid #1F1F1F',
+    border: '1px solid #E5E7EB',
   },
   noteText: {
     fontSize: '13px',
-    color: '#9CA3AF',
+    color: '#6B7280',
     margin: '0',
     textAlign: 'center',
     lineHeight: '1.5',
   },
   footerPrimary: {
     fontSize: '12px',
-    color: '#6B7280',
+    color: '#9CA3AF',
     textAlign: 'center',
     margin: '16px 0 6px',
   },
   footerSecondary: {
     fontSize: '11px',
-    color: '#374151',
+    color: '#D1D5DB',
     textAlign: 'center',
     margin: '0',
   },

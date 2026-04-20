@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Check, ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/lib/cart-store';
 import { Button } from '@/components/ui/Button';
+import { trackEvent } from '@/lib/tracking';
 import type { Product } from '@/types';
 
 export function AddToCartButton({ product }: { product: Product }) {
@@ -13,6 +14,7 @@ export function AddToCartButton({ product }: { product: Product }) {
   function handleAdd() {
     addItem(product);
     openCart();
+    trackEvent('cart_add', { product_id: product.id, product_name: product.name });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   }

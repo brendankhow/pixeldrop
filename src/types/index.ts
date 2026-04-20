@@ -7,6 +7,7 @@ export interface Product {
   preview_image_url: string | null;
   additional_images: string[];
   file_path: string;
+  file_paths: string[];
   is_active: boolean;
   tags: string[];
   stripe_price_id: string | null;

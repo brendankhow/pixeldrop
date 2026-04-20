@@ -60,3 +60,12 @@ body {
 ::-webkit-scrollbar-track { background: var(--card); }
 ::-webkit-scrollbar-thumb { background: var(--edge-2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--fg-faint); }
+
+/* Activity feed enter animation */
+@keyframes feed-enter {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.feed-item-enter {
+  animation: feed-enter 200ms ease-out both;
+}
