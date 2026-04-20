@@ -43,7 +43,6 @@ export function CartDrawer() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Checkout failed');
       if (data.url) {
-        clearCart();
         window.location.href = data.url;
       }
     } catch (err) {

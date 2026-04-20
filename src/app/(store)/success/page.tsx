@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { CheckCircle2, ExternalLink } from 'lucide-react';
 import { stripe } from '@/lib/stripe';
 import { formatPrice } from '@/lib/utils';
+import { ClearCartOnSuccess } from '@/components/store/ClearCartOnSuccess';
 
 interface SuccessPageProps {
   searchParams: Promise<{ session_id?: string }>;
@@ -37,6 +38,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-16">
+      <ClearCartOnSuccess />
       <div className="w-full max-w-lg mx-auto text-center">
 
         {/* Checkmark */}
