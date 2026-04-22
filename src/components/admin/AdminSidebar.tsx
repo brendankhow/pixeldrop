@@ -9,6 +9,7 @@ import {
   Receipt,
   Wand2,
   Activity,
+  Share2,
   LogOut,
   Menu,
   X,
@@ -22,6 +23,7 @@ const navItems = [
   { label: 'Orders', href: '/admin/orders', icon: Receipt },
   { label: 'Playground', href: '/admin/playground', icon: Wand2 },
   { label: 'Activity', href: '/admin/activity', icon: Activity },
+  { label: 'Social', href: '/admin/social', icon: Share2 },
 ];
 
 export function AdminSidebar() {

@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { formatPrice } from '@/lib/utils';
 import { RevenueChart } from '@/components/admin/RevenueChart';
 import { CategoryChart } from '@/components/admin/CategoryChart';
-import { TrendingUp, ShoppingBag, Users, Package } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, Package, Mail } from 'lucide-react';
 import type { Order, Product } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -10,17 +10,19 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboardPage() {
   const supabase = createServiceClient();
 
-  const [ordersResult, productsResult] = await Promise.all([
+  const [ordersResult, productsResult, subscribersResult] = await Promise.all([
     supabase
       .from('orders')
       .select('*')
       .in('status', ['paid', 'delivered', 'refunded'])
       .order('created_at', { ascending: false }),
     supabase.from('products').select('id, category').eq('is_active', true),
+    supabase.from('email_subscribers').select('id', { count: 'exact', head: true }),
   ]);
 
   const orders = (ordersResult.data ?? []) as Order[];
   const products = (productsResult.data ?? []) as Pick<Product, 'id' | 'category'>[];
+  const subscriberCount = subscribersResult.count ?? 0;
 
   // Build productId → category map
   const productCategoryMap: Record<string, string> = {};
@@ -78,6 +80,13 @@ export default async function AdminDashboardPage() {
       color: 'text-amber-400',
       bg: 'bg-amber-400/10',
     },
+    {
+      label: 'Email Subscribers',
+      value: subscriberCount.toString(),
+      icon: Mail,
+      color: 'text-pink-400',
+      bg: 'bg-pink-400/10',
+    },
   ];
 
   const isEmpty = orders.length === 0;
@@ -92,7 +101,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Metrics cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {metrics.map((m) => (
           <div
             key={m.label}

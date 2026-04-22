@@ -44,6 +44,10 @@ export async function POST(request: NextRequest) {
   const priceStr = formData.get('price') as string | null;
   const isActiveStr = formData.get('is_active') as string | null;
   const tagsStr = (formData.get('tags') as string | null) ?? '';
+  const resolutionStr = (formData.get('resolution') as string | null)?.trim() ?? '';
+  const compatibleDevicesStr = (formData.get('compatible_devices') as string | null) ?? '';
+  const badgeStr = (formData.get('badge') as string | null)?.trim() ?? '';
+  const originalPriceStr = formData.get('original_price') as string | null;
 
   // Files are uploaded directly from the browser to Supabase Storage.
   // The API only receives the resulting storage paths.
@@ -72,6 +76,14 @@ export async function POST(request: NextRequest) {
   const priceCents = Math.round(priceUsd * 100);
   const isActive = isActiveStr !== 'false';
   const tags = tagsStr ? tagsStr.split(',').map((t) => t.trim()).filter(Boolean) : [];
+  const resolution = resolutionStr || null;
+  const compatibleDevices = compatibleDevicesStr
+    ? compatibleDevicesStr.split(',').map((d) => d.trim()).filter(Boolean)
+    : null;
+  const badge = badgeStr || null;
+  const originalPriceCents = originalPriceStr && originalPriceStr.trim()
+    ? Math.round(parseFloat(originalPriceStr) * 100)
+    : null;
 
   const supabase = createServiceClient();
 
@@ -129,6 +141,10 @@ export async function POST(request: NextRequest) {
       tags,
       stripe_product_id: stripeProductId,
       stripe_price_id: stripePriceId,
+      resolution,
+      compatible_devices: compatibleDevices,
+      badge,
+      original_price: originalPriceCents,
     })
     .select()
     .single();

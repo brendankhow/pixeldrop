@@ -18,6 +18,8 @@ interface BatchDownloadButtonProps {
   label: string;
   /** When true, renders as the full-width "Download Everything" style */
   prominent?: boolean;
+  /** Optional prefix for individual PNG filenames inside the ZIP. Defaults to "pixeldrop". */
+  filenamePrefix?: string;
 }
 
 type BatchStatus = 'idle' | 'rendering' | 'done';
@@ -29,6 +31,7 @@ export function BatchDownloadButton({
   zipFilename,
   label,
   prominent = false,
+  filenamePrefix = 'pixeldrop',
 }: BatchDownloadButtonProps) {
   const [status, setStatus] = useState<BatchStatus>('idle');
   const [current, setCurrent] = useState(0);
@@ -51,7 +54,7 @@ export function BatchDownloadButton({
 
         const cropState: CropState = cropStates[fmt.slug] ?? DEFAULT_CROP;
         const blob = await renderToBlob(sourceImage, fmt.w, fmt.h, cropState);
-        zip.file(`pixeldrop-${fmt.slug}.png`, blob);
+        zip.file(`${filenamePrefix}-${fmt.slug}.png`, blob);
       }
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });

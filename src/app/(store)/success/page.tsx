@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle2, ExternalLink } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { stripe } from '@/lib/stripe';
 import { formatPrice } from '@/lib/utils';
 import { ClearCartOnSuccess } from '@/components/store/ClearCartOnSuccess';
@@ -34,7 +34,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   const lineItems = session.line_items?.data ?? [];
 
   const shareUrl =
-    'https://twitter.com/intent/tweet?text=Just+grabbed+some+beautiful+wallpapers+from+%40PixelDropp+%F0%9F%8E%A8&url=https%3A%2F%2Fpixeldrop.com';
+    'https://twitter.com/intent/tweet?text=Just+copped+this+wallpaper+from+%40PixelDropp+%F0%9F%94%A5+pixeldropp.vercel.app';
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-16">
@@ -101,20 +101,25 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {/* Share on X */}
+        {/* Share section */}
+        <div className="mb-6 py-5 px-6 rounded-2xl bg-card border border-edge">
+          <p className="text-sm font-semibold text-fg mb-3">Spread the word 🎨</p>
           <a
             href={shareUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-edge border border-edge-2 text-fg text-sm font-medium hover:bg-[#2D2D2D] transition-colors min-h-[48px]"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-fg-muted text-sm font-medium hover:bg-[#222] hover:text-fg transition-colors min-h-[40px]"
           >
+            {/* X (Twitter) logo */}
+            <svg width="14" height="14" viewBox="0 0 1200 1227" fill="currentColor" aria-hidden="true">
+              <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.163 519.284ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.828Z" />
+            </svg>
             Share on X
-            <ExternalLink size={14} />
           </a>
+        </div>
 
-          {/* Browse more */}
+        {/* Actions */}
+        <div className="flex justify-center">
           <Link
             href="/"
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#5B21B6] text-white text-sm font-semibold hover:bg-[#6D28D9] transition-colors min-h-[48px]"

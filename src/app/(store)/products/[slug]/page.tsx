@@ -38,17 +38,21 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       .eq('id', slug)
       .single();
     if (!data) return { title: 'Product Not Found' };
+    const desc = data.description?.slice(0, 155) ?? undefined;
     return {
-      title: data.name,
-      description: data.description ?? undefined,
+      title: `${data.name} — PixelDropp`,
+      description: desc,
+      robots: { index: true, follow: true },
       openGraph: {
         title: data.name,
-        description: data.description ?? undefined,
-        images: data.preview_image_url ? [data.preview_image_url] : [],
+        description: desc,
+        images: data.preview_image_url ? [{ url: data.preview_image_url }] : [],
+        type: 'website',
+        siteName: 'PixelDropp',
       },
     };
   } catch {
-    return { title: 'Product' };
+    return { title: 'Product — PixelDropp' };
   }
 }
 
@@ -66,6 +70,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (error || !product) notFound();
 
   const p = product as Product;
+
+  // Fetch sales count from view (silently fails — never blocks the page)
+  const { data: salesData } = await supabase
+    .from('product_sales_counts')
+    .select('sales_count')
+    .eq('id', slug)
+    .single();
+  const salesCount = Number(salesData?.sales_count ?? 0);
 
   const { data: sameCategory } = await supabase
     .from('products')
@@ -110,6 +122,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             ...(p.additional_images ?? []),
           ]}
           productName={p.name}
+          category={p.category}
         />
 
         {/* Details */}
@@ -123,12 +136,53 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           {/* Title + Price */}
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-fg leading-tight">{p.name}</h1>
-            <p className="mt-3 text-4xl font-bold text-fg">${(p.price / 100).toFixed(2)}</p>
+            <div className="mt-3 flex items-baseline gap-3">
+              {p.original_price && (
+                <span className="text-2xl text-fg-faint line-through">
+                  ${(p.original_price / 100).toFixed(2)}
+                </span>
+              )}
+              <span className={`text-4xl font-bold ${p.original_price ? 'text-emerald-400' : 'text-fg'}`}>
+                ${(p.price / 100).toFixed(2)}
+              </span>
+            </div>
           </div>
+
+          {/* Social proof */}
+          {salesCount >= 3 && (
+            <p className="text-sm text-fg-muted">
+              🛒 {salesCount > 50 ? `${salesCount}+` : salesCount} customer{salesCount !== 1 ? 's' : ''} bought this
+            </p>
+          )}
+
+          {/* Resolution spec */}
+          {p.resolution && (
+            <div className="flex items-center gap-2 text-sm text-fg-muted">
+              <span className="text-base leading-none">📐</span>
+              <span>Resolution: {p.resolution} px</span>
+            </div>
+          )}
 
           {/* Description */}
           {p.description && (
             <p className="text-fg-muted leading-relaxed">{p.description}</p>
+          )}
+
+          {/* Compatible devices */}
+          {p.compatible_devices && p.compatible_devices.length > 0 && (
+            <div>
+              <p className="text-xs text-fg-faint mb-2">Compatible with:</p>
+              <div className="flex flex-wrap gap-2">
+                {p.compatible_devices.map((device) => (
+                  <span
+                    key={device}
+                    className="rounded-full bg-[#1a1a1a] border border-[#2a2a2a] px-3 py-1 text-xs text-fg-muted"
+                  >
+                    {device}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Tags */}
@@ -149,18 +203,21 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
 
           {/* Trust bullets */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {[
-              { icon: Zap, text: 'Instant email delivery' },
-              { icon: Download, text: 'High resolution files' },
-              { icon: Shield, text: 'Secure checkout via Stripe' },
-              { icon: Clock, text: 'Link valid for 48 hours' },
-            ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-2 text-xs text-fg-faint">
-                <Icon size={13} className="text-primary shrink-0" />
-                {text}
-              </div>
-            ))}
+          <div className="space-y-3 pt-1">
+            <p className="text-xs text-fg-muted">✦ Instant delivery — files sent to your inbox within seconds</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: Download, text: 'High resolution files' },
+                { icon: Shield, text: 'Secure checkout via Stripe' },
+                { icon: Clock, text: 'Link valid for 48 hours' },
+                { icon: Zap, text: 'No account required' },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-2 text-xs text-fg-faint">
+                  <Icon size={13} className="text-primary shrink-0" />
+                  {text}
+                </div>
+              ))}
+            </div>
           </div>
 
         </div>

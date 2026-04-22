@@ -35,6 +35,13 @@ export function ProductForm({ mode, product }: ProductFormProps) {
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
   const [tags, setTags] = useState<string[]>(product?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
+  const [resolution, setResolution] = useState(product?.resolution ?? '');
+  const [compatibleDevices, setCompatibleDevices] = useState<string[]>(product?.compatible_devices ?? []);
+  const [deviceInput, setDeviceInput] = useState('');
+  const [badge, setBadge] = useState<string>(product?.badge ?? '');
+  const [originalPriceUsd, setOriginalPriceUsd] = useState(
+    product?.original_price ? (product.original_price / 100).toFixed(2) : ''
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -125,6 +132,15 @@ export function ProductForm({ mode, product }: ProductFormProps) {
     }
   }
 
+  function handleDeviceKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const device = deviceInput.trim().replace(/,$/, '');
+      if (device && !compatibleDevices.includes(device)) setCompatibleDevices((prev) => [...prev, device]);
+      setDeviceInput('');
+    }
+  }
+
   async function uploadFileDirect(bucket: string, file: File, storagePath?: string): Promise<string> {
     const filename = storagePath ?? file.name;
     const res = await fetch('/api/admin/upload-url', {
@@ -190,6 +206,10 @@ export function ProductForm({ mode, product }: ProductFormProps) {
       formData.set('price', priceUsd);
       formData.set('is_active', String(isActive));
       formData.set('tags', tags.join(','));
+      formData.set('resolution', resolution);
+      formData.set('compatible_devices', compatibleDevices.join(','));
+      formData.set('badge', badge);
+      formData.set('original_price', originalPriceUsd);
 
       if (previewImagePath) {
         formData.set('preview_image_path', previewImagePath);
@@ -278,6 +298,50 @@ export function ProductForm({ mode, product }: ProductFormProps) {
           placeholder="4.99"
           required
         />
+      </div>
+
+      {/* Resolution */}
+      <div className="space-y-1.5">
+        <Input
+          id="resolution"
+          label="Resolution"
+          value={resolution}
+          onChange={(e) => setResolution(e.target.value)}
+          placeholder="e.g. 1320 × 2868"
+        />
+        <p className="text-xs text-fg-faint">Enter the pixel dimensions of the deliverable file</p>
+      </div>
+
+      {/* Compatible Devices */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-fg">Compatible Devices</label>
+        <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-card border border-edge min-h-[52px]">
+          {compatibleDevices.map((device) => (
+            <span
+              key={device}
+              className="inline-flex items-center gap-1.5 bg-primary/20 border border-primary/30 text-[#A78BFA] rounded-full px-3 py-1 text-xs font-medium"
+            >
+              {device}
+              <button
+                type="button"
+                onClick={() => setCompatibleDevices((p) => p.filter((d) => d !== device))}
+                className="hover:text-white transition-colors"
+                aria-label={`Remove ${device}`}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+          <input
+            type="text"
+            value={deviceInput}
+            onChange={(e) => setDeviceInput(e.target.value)}
+            onKeyDown={handleDeviceKeyDown}
+            placeholder={compatibleDevices.length === 0 ? 'iPhone 16 Pro Max, iPhone 15 Pro…' : ''}
+            className="flex-1 min-w-[140px] bg-transparent text-sm text-fg placeholder:text-fg-faint focus:outline-none"
+          />
+        </div>
+        <p className="text-xs text-fg-faint">Press Enter or comma to add a device. List the screens this wallpaper is optimised for.</p>
       </div>
 
       {/* Unified image grid */}
@@ -477,6 +541,55 @@ export function ProductForm({ mode, product }: ProductFormProps) {
           />
         </div>
         <p className="text-xs text-fg-faint">Press Enter or comma to add a tag</p>
+      </div>
+
+      {/* ── Merchandising ─────────────────────────────────────────────────── */}
+      <div className="space-y-5 pt-2 border-t border-edge">
+        <h3 className="text-sm font-semibold text-fg-muted uppercase tracking-wide">Merchandising</h3>
+
+        {/* Badge selector */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-fg">Product Badge</label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: '', label: 'None' },
+              { value: 'new', label: '🆕 New' },
+              { value: 'trending', label: '🔥 Trending' },
+              { value: 'bestseller', label: '⭐ Bestseller' },
+            ].map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setBadge(value)}
+                className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
+                  badge === value
+                    ? 'bg-primary border-primary text-white'
+                    : 'bg-card border-edge text-fg-muted hover:border-primary/50 hover:text-fg'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-fg-faint">Shown as an overlay badge on the product card</p>
+        </div>
+
+        {/* Original price (for sale pricing) */}
+        <div className="space-y-1.5">
+          <Input
+            id="original_price"
+            label="Original Price (USD) — optional"
+            type="number"
+            min="0.50"
+            step="0.01"
+            value={originalPriceUsd}
+            onChange={(e) => setOriginalPriceUsd(e.target.value)}
+            placeholder="e.g. 9.99"
+          />
+          <p className="text-xs text-fg-faint">
+            If set, shows as a struck-through "was" price alongside the current sale price
+          </p>
+        </div>
       </div>
 
       {error && (

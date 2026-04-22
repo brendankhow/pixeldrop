@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
+import { createServiceClient } from '@/lib/supabase/server';
 
 interface CheckoutItem {
   stripe_price_id: string | null;
@@ -18,7 +19,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Gracefully skip items without a stripe_price_id
-    const validItems = items.filter((i) => i.stripe_price_id);
+    const itemsWithPrice = items.filter((i) => i.stripe_price_id);
+
+    // Guard: fetch product prices from DB and exclude free ($0) products
+    const supabase = createServiceClient();
+    const productIds = itemsWithPrice.map((i) => i.product_id);
+    const { data: dbProducts } = await supabase
+      .from('products')
+      .select('id, price')
+      .in('id', productIds);
+
+    const paidProductIds = new Set(
+      (dbProducts ?? []).filter((p) => p.price > 0).map((p) => p.id)
+    );
+    const validItems = itemsWithPrice.filter((i) => paidProductIds.has(i.product_id));
     const skippedCount = items.length - validItems.length;
 
     if (validItems.length === 0) {

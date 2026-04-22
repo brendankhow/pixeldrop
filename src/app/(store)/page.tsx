@@ -10,8 +10,16 @@ import type { Product } from '@/types';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: 'PixelDropp — Beautiful Digital Wallpapers',
-  description: 'Hand-crafted wallpapers for iPhone, desktop and beyond. Instant delivery to your inbox.',
+  title: 'PixelDropp — Premium AI Wallpapers for iPhone & Desktop',
+  description: 'Hand-crafted AI wallpapers for iPhone, desktop, and beyond. Instant delivery to your inbox. Starting from $5.99.',
+  robots: { index: true, follow: true },
+  openGraph: {
+    title: 'PixelDropp — Premium AI Wallpapers',
+    description: 'Hand-crafted AI wallpapers. Instant email delivery.',
+    url: 'https://pixeldropp.vercel.app',
+    siteName: 'PixelDropp',
+    type: 'website',
+  },
 };
 
 export default async function HomePage() {

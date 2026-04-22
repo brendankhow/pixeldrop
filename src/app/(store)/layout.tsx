@@ -1,10 +1,12 @@
 import { Navbar } from '@/components/store/Navbar';
 import { StoreTracker } from '@/components/store/StoreTracker';
+import { EmailCapturePopup } from '@/components/store/EmailCapturePopup';
 
 export default function StoreLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
       <StoreTracker />
+      <EmailCapturePopup />
       <Navbar />
       <main className="flex-1">{children}</main>
       <footer className="border-t border-edge py-8 px-4 text-center">

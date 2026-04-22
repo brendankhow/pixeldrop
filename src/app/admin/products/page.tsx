@@ -9,15 +9,17 @@ export const dynamic = 'force-dynamic';
 export default async function AdminProductsPage() {
   const supabase = createServiceClient();
 
-  const [productsResult, ordersResult] = await Promise.all([
+  const [productsResult, ordersResult, subscribersResult] = await Promise.all([
     supabase.from('products').select('*').order('created_at', { ascending: false }),
     supabase
       .from('orders')
       .select('products')
       .in('status', ['paid', 'delivered']),
+    supabase.from('email_subscribers').select('id', { count: 'exact', head: true }),
   ]);
 
   const products = (productsResult.data ?? []) as Product[];
+  const subscriberCount = subscribersResult.count ?? 0;
 
   // Compute sales count per product from JSONB orders
   const salesMap: Record<string, number> = {};
@@ -47,7 +49,7 @@ export default async function AdminProductsPage() {
         </Link>
       </div>
 
-      <ProductsTable products={products} salesMap={salesMap} />
+      <ProductsTable products={products} salesMap={salesMap} subscriberCount={subscriberCount} />
     </div>
   );
 }

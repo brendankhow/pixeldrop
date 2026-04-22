@@ -29,6 +29,8 @@ interface FormatCardProps {
   slug: string;
   cropState: CropState;
   onCropChange: (slug: string, state: CropState) => void;
+  /** Optional prefix for download filename. Defaults to "pixeldrop". Result: "{prefix}-{slug}.png" */
+  filenamePrefix?: string;
 }
 
 export function FormatCard({
@@ -39,6 +41,7 @@ export function FormatCard({
   slug,
   cropState,
   onCropChange,
+  filenamePrefix = 'pixeldrop',
 }: FormatCardProps) {
   // ── Derived preview dimensions (stable per card instance) ──────────────────
   const previewScale = Math.min(MAX_PREVIEW_W / targetWidth, MAX_PREVIEW_H / targetHeight);
@@ -211,7 +214,7 @@ export function FormatCard({
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `pixeldrop-${slug}.png`;
+            a.download = `${filenamePrefix}-${slug}.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);

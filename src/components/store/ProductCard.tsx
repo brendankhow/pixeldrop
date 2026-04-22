@@ -6,6 +6,12 @@ import { Check, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { useCartStore } from '@/lib/cart-store';
 import { formatPrice } from '@/lib/utils';
+
+const BADGE_STYLES: Record<string, { label: string; className: string }> = {
+  new:        { label: 'NEW',         className: 'bg-teal-500/90 text-white' },
+  trending:   { label: '🔥 HOT',      className: 'bg-orange-500/90 text-white' },
+  bestseller: { label: '⭐ BESTSELLER', className: 'bg-amber-400/90 text-black' },
+};
 import { trackEvent } from '@/lib/tracking';
 import type { Product } from '@/types';
 
@@ -60,6 +66,13 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             {categoryLabels[product.category]}
           </span>
         </div>
+        {product.badge && BADGE_STYLES[product.badge] && (
+          <div className="absolute top-3 right-3">
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold backdrop-blur-sm ${BADGE_STYLES[product.badge].className}`}>
+              {BADGE_STYLES[product.badge].label}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col flex-1 p-4 gap-3">
@@ -73,7 +86,14 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <span className="text-lg font-bold text-fg">{formatPrice(product.price)}</span>
+          <div className="flex items-baseline gap-2">
+            {product.original_price && (
+              <span className="text-sm text-fg-faint line-through">{formatPrice(product.original_price)}</span>
+            )}
+            <span className={`text-lg font-bold ${product.original_price ? 'text-emerald-400' : 'text-fg'}`}>
+              {formatPrice(product.price)}
+            </span>
+          </div>
           <button
             onClick={handleAddToCart}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] transition-all duration-200 ${

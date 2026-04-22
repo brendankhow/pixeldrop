@@ -12,6 +12,11 @@ export interface Product {
   tags: string[];
   stripe_price_id: string | null;
   stripe_product_id: string | null;
+  resolution: string | null;
+  compatible_devices: string[] | null;
+  badge: string | null;
+  original_price: number | null;
+  last_blast_at: string | null;
   created_at: string;
 }
 
@@ -31,4 +36,16 @@ export interface Order {
 export interface CartItem {
   product: Product;
   quantity: number;
+}
+
+export interface SocialQueueItem {
+  id: string;
+  product_id: string;
+  platform: 'instagram' | 'twitter';
+  format_slug: string;
+  caption: string | null;
+  status: 'draft' | 'posted';
+  posted_at: string | null;
+  created_at: string;
+  product?: { name: string; preview_image_url: string | null };
 }

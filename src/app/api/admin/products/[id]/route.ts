@@ -70,6 +70,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const priceStr = formData.get('price') as string | null;
   const isActiveStr = formData.get('is_active') as string | null;
   const tagsStr = formData.get('tags') as string | null;
+  const resolutionStr = formData.get('resolution') as string | null;
+  const compatibleDevicesStr = formData.get('compatible_devices') as string | null;
+  const badgeStr = formData.get('badge') as string | null;
+  const originalPriceStr = formData.get('original_price') as string | null;
 
   const priceUsd = priceStr ? parseFloat(priceStr) : current.price / 100;
   if (isNaN(priceUsd) || priceUsd < 0.5) {
@@ -80,6 +84,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const tags = tagsStr !== null
     ? tagsStr.split(',').map((t) => t.trim()).filter(Boolean)
     : current.tags;
+  const resolution = resolutionStr !== null
+    ? (resolutionStr.trim() || null)
+    : current.resolution;
+  const compatibleDevices = compatibleDevicesStr !== null
+    ? (compatibleDevicesStr ? compatibleDevicesStr.split(',').map((d) => d.trim()).filter(Boolean) : null)
+    : current.compatible_devices;
+  const badge = badgeStr !== null ? (badgeStr.trim() || null) : current.badge;
+  const originalPriceCents = originalPriceStr !== null
+    ? (originalPriceStr.trim() ? Math.round(parseFloat(originalPriceStr) * 100) : null)
+    : current.original_price;
 
   // Files are uploaded directly from the browser to Supabase Storage.
   // The API only receives storage paths (no file blobs cross Vercel's body limit).
@@ -167,6 +181,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       is_active: isActive,
       tags,
       stripe_price_id: stripePriceId,
+      resolution,
+      compatible_devices: compatibleDevices,
+      badge,
+      original_price: originalPriceCents,
     })
     .eq('id', id)
     .select()
